@@ -36,3 +36,10 @@ class TestParseError(TestCase):
         with self.assertRaises(ParseError) as e:
             self.parser.parse(code)
         self.assertEqual("ParseError: Register X can not be used as an address at 1, column 5", str(e.exception))
+
+    def test_wrong_register_in_indexed_addressing(self):
+        code = 'STA $1000,A'
+        with self.assertRaises(ParseError) as e:
+            self.parser.parse(code)
+        self.assertEqual("ParseError: Only registers X and Y can be used for indexing, found A at 1, column 11",
+                         str(e.exception))

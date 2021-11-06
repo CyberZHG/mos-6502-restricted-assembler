@@ -27,8 +27,7 @@ class ADDRESSING(object):
     IMPLIED = 'addressing_implied'
     ADDRESS = 'addressing_address'
     INDIRECT = 'addressing_indirect'
-    ABSOLUTE_INDEXED = 'addressing_absolute_indexed'
-    ZERO_PAGE_INDEXED = 'addressing_zero_page_indexed'
+    INDEXED = 'addressing_indexed'
     INDEXED_INDIRECT = 'addressing_indexed_indirect'
     INDIRECT_INDEXED = 'addressing_indirect_indexed'
 
@@ -210,9 +209,17 @@ def p_stat_val_indirect(p):
     return p
 
 
+def p_stat_val_indexed(p):
+    """stat_val : arithmetic ',' REGISTER"""
+    if p[3][0] not in {'X', 'Y'}:
+        raise ParseError(f"Only registers X and Y can be used for indexing, found {p[3][0]} at "
+                         f"{p.lineno(3)}, column {get_column(p, index=3)}")
+    p[0] = (ADDRESSING.INDEXED, (ADDRESS, p[1]), (REGISTER, p[3]))
+    return p
+
+
 def p_stat_val(p):
     """stat_val : BIT LABEL
-                | numeric ',' REGISTER
                 | '(' arithmetic ',' REGISTER ')'
                 | '(' arithmetic ')' ',' REGISTER
     """

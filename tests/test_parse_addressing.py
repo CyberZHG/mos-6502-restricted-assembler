@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from asm_6502.grammar import get_parser, ADDRESSING, INSTANT, ADDRESS, INTEGER
+from asm_6502.grammar import get_parser, ADDRESSING, INSTANT, ADDRESS, INTEGER, REGISTER
 
 
 class TestParseAddressing(TestCase):
@@ -36,3 +36,12 @@ class TestParseAddressing(TestCase):
         code = 'JMP  ($1000)'
         results = self.parser.parse(code)[0][2]
         self.assertEqual((ADDRESSING.INDIRECT, (ADDRESS, (INTEGER, 4096))), results)
+
+    def test_addressing_indexed(self):
+        code = 'STA $1000,Y'
+        results = self.parser.parse(code)[0][2]
+        self.assertEqual((ADDRESSING.INDEXED, (ADDRESS, (INTEGER, 4096)), (REGISTER, 'Y')), results)
+
+        code = 'LDA $C0,X'
+        results = self.parser.parse(code)[0][2]
+        self.assertEqual((ADDRESSING.INDEXED, (ADDRESS, (INTEGER, 192)), (REGISTER, 'X')), results)
