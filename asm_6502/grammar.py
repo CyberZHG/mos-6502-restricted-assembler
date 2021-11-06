@@ -4,8 +4,8 @@ import ply.lex as lex
 import ply.yacc as yacc
 
 __all__ = ['get_parser', 'ParseError',
-           'Integer', 'INSTANT', 'ADDRESS', 'CURRENT', 'ARITHMETIC', 'LABEL', 'KEYWORD', 'INSTRUCTION',
-           'REGISTER', 'ADDRESSING', 'KEYWORDS']
+           'Integer', 'INSTANT', 'ADDRESS', 'Addressing', 'CURRENT', 'ARITHMETIC', 'LABEL', 'KEYWORD', 'INSTRUCTION',
+           'REGISTER', 'KEYWORDS']
 
 
 _PARSER = None
@@ -65,16 +65,16 @@ class Integer(namedtuple('Integer', ['is_word', 'value'])):
         return cls(is_word=False, value=0)
 
 
-class ADDRESSING(object):
+class Addressing(namedtuple('Addressing', ['mode', 'address', 'register'], defaults=[None, None, None])):
 
-    ACCUMULATOR = 'addressing_accumulator'
-    IMMEDIATE = 'addressing_immediate'
-    IMPLIED = 'addressing_implied'
-    ADDRESS = 'addressing_address'
-    INDIRECT = 'addressing_indirect'
-    INDEXED = 'addressing_indexed'
-    INDEXED_INDIRECT = 'addressing_indexed_indirect'
-    INDIRECT_INDEXED = 'addressing_indirect_indexed'
+    ACCUMULATOR = 'accumulator'
+    IMMEDIATE = 'immediate'
+    IMPLIED = 'implied'
+    ADDRESS = 'address'
+    INDIRECT = 'indirect'
+    INDEXED = 'indexed'
+    INDEXED_INDIRECT = 'indexed_indirect'
+    INDIRECT_INDEXED = 'indirect_indexed'
 
 
 KEYWORDS = {
@@ -236,7 +236,7 @@ def p_stat_empty(p):
 def p_stat_val_accumulator(p):
     """stat_val : REGISTER"""
     if p[1] == 'A':
-        p[0] = (ADDRESSING.ACCUMULATOR,)
+        p[0] = Addressing(Addressing.ACCUMULATOR)
     else:
         raise ParseError(f"Register {p[1]} can not be used as an address at "
                          f"{p.lineno(1)}, column {get_column(p, index=1)}")
@@ -246,21 +246,21 @@ def p_stat_val_accumulator(p):
 def p_stat_val_direct(p):
     """stat_val : numeric"""
     if isinstance(p[1], tuple) and p[1][0] == INSTANT:
-        p[0] = (ADDRESSING.IMMEDIATE, p[1])
+        p[0] = Addressing(Addressing.IMMEDIATE, address=p[1])
     else:
-        p[0] = (ADDRESSING.ADDRESS, p[1])
+        p[0] = Addressing(Addressing.ADDRESS, address=p[1])
     return p
 
 
 def p_stat_val_empty(p):
     """stat_val :"""
-    p[0] = (ADDRESSING.IMPLIED,)
+    p[0] = Addressing(Addressing.IMPLIED,)
     return p
 
 
 def p_stat_val_indirect(p):
     """stat_val : '(' arithmetic ')'"""
-    p[0] = (ADDRESSING.INDIRECT, (ADDRESS, p[2]))
+    p[0] = Addressing(Addressing.INDIRECT, address=(ADDRESS, p[2]))
     return p
 
 
@@ -269,7 +269,7 @@ def p_stat_val_indexed(p):
     if p[3][0] not in {'X', 'Y'}:
         raise ParseError(f"Only registers X and Y can be used for indexing, found {p[3][0]} at "
                          f"{p.lineno(3)}, column {get_column(p, index=3)}")
-    p[0] = (ADDRESSING.INDEXED, (ADDRESS, p[1]), (REGISTER, p[3]))
+    p[0] = Addressing(Addressing.INDEXED, address=(ADDRESS, p[1]), register=p[3])
     return p
 
 
@@ -278,7 +278,7 @@ def p_stat_val_indexed_indirect(p):
     if p[4][0] != 'X':
         raise ParseError(f"Only register X can be used for indexed indirect addressing, found {p[4][0]} at "
                          f"{p.lineno(4)}, column {get_column(p, index=4)}")
-    p[0] = (ADDRESSING.INDEXED_INDIRECT, (ADDRESS, p[2]), (REGISTER, p[4]))
+    p[0] = Addressing(Addressing.INDEXED_INDIRECT, address=(ADDRESS, p[2]), register=p[4])
     return p
 
 
@@ -287,7 +287,7 @@ def p_stat_val_indirect_indexed(p):
     if p[5][0] != 'Y':
         raise ParseError(f"Only register Y can be used for indexed indirect addressing, found {p[5][0]} at "
                          f"{p.lineno(5)}, column {get_column(p, index=5)}")
-    p[0] = (ADDRESSING.INDIRECT_INDEXED, (ADDRESS, p[2]), (REGISTER, p[5]))
+    p[0] = Addressing(Addressing.INDIRECT_INDEXED, address=(ADDRESS, p[2]), register=p[5])
     return p
 
 
@@ -295,14 +295,14 @@ def p_stat_val(p):
     """stat_val : BIT arithmetic"""
     if p[1] == '#LO':
         if isinstance(p[2], Integer):
-            p[0] = (ADDRESSING.IMMEDIATE, (INSTANT, p[2].low_byte()))
+            p[0] = Addressing(Addressing.IMMEDIATE, address=(INSTANT, p[2].low_byte()))
         else:
-            p[0] = (ADDRESSING.IMMEDIATE, (INSTANT, (ARITHMETIC, 'lo', p[2])))
+            p[0] = Addressing(Addressing.IMMEDIATE, address=(INSTANT, (ARITHMETIC, 'lo', p[2])))
     else:
         if isinstance(p[2], Integer):
-            p[0] = (ADDRESSING.IMMEDIATE, (INSTANT, p[2].high_byte()))
+            p[0] = Addressing(Addressing.IMMEDIATE, address=(INSTANT, p[2].high_byte()))
         else:
-            p[0] = (ADDRESSING.IMMEDIATE, (INSTANT, (ARITHMETIC, 'hi', p[2])))
+            p[0] = Addressing(Addressing.IMMEDIATE, address=(INSTANT, (ARITHMETIC, 'hi', p[2])))
     return p
 
 
