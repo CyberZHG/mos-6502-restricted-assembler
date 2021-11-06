@@ -6,9 +6,9 @@ _tabversion = '3.10'
 
 _lr_method = 'LALR'
 
-_lr_signature = "left+-leftCUR/rightUMINUSBIN BIT CHAR CUR DEC HEX LABEL NEWLINE PSEUDOstat : LABEL LABEL stat_val\n            | LABEL PSEUDO stat_valstat : LABEL stat_val\n            | PSEUDO stat_valstat : stat NEWLINE statstat :stat_val : arithmetic\n                | LABELstat_val : BIT LABEL\n                | arithmetic ',' LABEL\n                | LABEL ',' LABEL\n                | '(' address ')'\n                | '(' LABEL ')'\n                | '(' address ',' LABEL ')'\n                | '(' LABEL ',' LABEL ')'\n                | '(' address ')' ',' LABEL\n                | '(' LABEL ')' ',' LABEL\n                |\n    numeric : '#' DEC\n               | '#' HEX\n               | '#' BIN\n               | '#' CHAR\n    address : DEC\n               | HEX\n               | BIN\n    arithmetic : '-' arithmetic %prec UMINUSarithmetic : numeric\n                  | addressarithmetic : CURarithmetic : '[' arithmetic ']'arithmetic : arithmetic '+' arithmetic\n                  | arithmetic '-' arithmetic\n                  | arithmetic CUR arithmetic\n                  | arithmetic '/' arithmetic\n    "
+_lr_signature = "left+-leftCUR/rightUMINUSBIN BIT CHAR CUR DEC HEX LABEL NEWLINE PSEUDOstat : LABEL LABEL stat_val\n            | LABEL PSEUDO stat_valstat : LABEL stat_val\n            | PSEUDO stat_valstat : stat NEWLINE statstat :stat_val : numeric\n                | LABELstat_val : BIT LABEL\n                | numeric ',' LABEL\n                | LABEL ',' LABEL\n                | '(' numeric ')'\n                | '(' LABEL ')'\n                | '(' numeric ',' LABEL ')'\n                | '(' LABEL ',' LABEL ')'\n                | '(' numeric ')' ',' LABEL\n                | '(' LABEL ')' ',' LABEL\n                |\n    numeric : arithmetic\n               | '#' arithmeticarithmetic : '-' arithmetic %prec UMINUSarithmetic : integerarithmetic : CURarithmetic : '[' arithmetic ']'arithmetic : arithmetic '+' arithmetic\n                  | arithmetic '-' arithmetic\n                  | arithmetic CUR arithmetic\n                  | arithmetic '/' arithmetic\n    integer : DEC\n              | HEX\n              | BIN\n              | CHAR\n    "
     
-_lr_action_items = {'LABEL':([0,2,3,4,5,7,9,10,24,26,47,49,51,53,],[2,5,21,2,21,21,31,33,40,41,52,54,55,57,]),'PSEUDO':([0,2,4,],[3,7,3,]),'NEWLINE':([0,1,2,3,4,5,6,7,8,11,13,14,17,18,19,20,21,22,23,25,31,34,36,37,38,39,40,41,42,43,44,45,46,48,50,55,56,57,58,],[-6,4,-18,-18,-6,-8,-3,-18,-7,-28,-27,-29,-23,-24,-25,-4,-8,4,-1,-2,-9,-26,-19,-20,-21,-22,-11,-10,-31,-32,-33,-34,-12,-13,-30,-16,-14,-17,-15,]),'$end':([0,1,2,3,4,5,6,7,8,11,13,14,17,18,19,20,21,22,23,25,31,34,36,37,38,39,40,41,42,43,44,45,46,48,50,55,56,57,58,],[-6,0,-18,-18,-6,-8,-3,-18,-7,-28,-27,-29,-23,-24,-25,-4,-8,-5,-1,-2,-9,-26,-19,-20,-21,-22,-11,-10,-31,-32,-33,-34,-12,-13,-30,-16,-14,-17,-15,]),'BIT':([2,3,5,7,],[9,9,9,9,]),'(':([2,3,5,7,],[10,10,10,10,]),'-':([2,3,5,7,8,11,12,13,14,15,17,18,19,27,28,29,30,34,35,36,37,38,39,42,43,44,45,50,],[12,12,12,12,28,-28,12,-27,-29,12,-23,-24,-25,12,12,12,12,-26,28,-19,-20,-21,-22,-31,-32,-33,-34,-30,]),'CUR':([2,3,5,7,8,11,12,13,14,15,17,18,19,27,28,29,30,34,35,36,37,38,39,42,43,44,45,50,],[14,14,14,14,29,-28,14,-27,-29,14,-23,-24,-25,14,14,14,14,-26,29,-19,-20,-21,-22,29,29,-33,-34,-30,]),'[':([2,3,5,7,12,15,27,28,29,30,],[15,15,15,15,15,15,15,15,15,15,]),'#':([2,3,5,7,12,15,27,28,29,30,],[16,16,16,16,16,16,16,16,16,16,]),'DEC':([2,3,5,7,10,12,15,16,27,28,29,30,],[17,17,17,17,17,17,17,36,17,17,17,17,]),'HEX':([2,3,5,7,10,12,15,16,27,28,29,30,],[18,18,18,18,18,18,18,37,18,18,18,18,]),'BIN':([2,3,5,7,10,12,15,16,27,28,29,30,],[19,19,19,19,19,19,19,38,19,19,19,19,]),',':([5,8,11,13,14,17,18,19,21,32,33,34,36,37,38,39,42,43,44,45,46,48,50,],[24,26,-28,-27,-29,-23,-24,-25,24,47,49,-26,-19,-20,-21,-22,-31,-32,-33,-34,51,53,-30,]),'+':([8,11,13,14,17,18,19,34,35,36,37,38,39,42,43,44,45,50,],[27,-28,-27,-29,-23,-24,-25,-26,27,-19,-20,-21,-22,-31,-32,-33,-34,-30,]),'/':([8,11,13,14,17,18,19,34,35,36,37,38,39,42,43,44,45,50,],[30,-28,-27,-29,-23,-24,-25,-26,30,-19,-20,-21,-22,30,30,-33,-34,-30,]),']':([11,13,14,17,18,19,34,35,36,37,38,39,42,43,44,45,50,],[-28,-27,-29,-23,-24,-25,-26,50,-19,-20,-21,-22,-31,-32,-33,-34,-30,]),'CHAR':([16,],[39,]),')':([17,18,19,32,33,52,54,],[-23,-24,-25,46,48,56,58,]),}
+_lr_action_items = {'LABEL':([0,2,3,4,5,7,9,10,25,27,41,43,49,51,],[2,5,22,2,22,22,28,30,38,39,50,52,53,55,]),'PSEUDO':([0,2,4,],[3,7,3,]),'NEWLINE':([0,1,2,3,4,5,6,7,8,11,14,15,17,18,19,20,21,22,23,24,26,28,35,36,38,39,40,42,44,45,46,47,48,53,54,55,56,],[-6,4,-18,-18,-6,-8,-3,-18,-7,-19,-22,-23,-29,-30,-31,-32,-4,-8,4,-1,-2,-9,-20,-21,-11,-10,-12,-13,-25,-26,-27,-28,-24,-16,-14,-17,-15,]),'$end':([0,1,2,3,4,5,6,7,8,11,14,15,17,18,19,20,21,22,23,24,26,28,35,36,38,39,40,42,44,45,46,47,48,53,54,55,56,],[-6,0,-18,-18,-6,-8,-3,-18,-7,-19,-22,-23,-29,-30,-31,-32,-4,-8,-5,-1,-2,-9,-20,-21,-11,-10,-12,-13,-25,-26,-27,-28,-24,-16,-14,-17,-15,]),'BIT':([2,3,5,7,],[9,9,9,9,]),'(':([2,3,5,7,],[10,10,10,10,]),'#':([2,3,5,7,10,],[12,12,12,12,12,]),'-':([2,3,5,7,10,11,12,13,14,15,16,17,18,19,20,31,32,33,34,35,36,37,44,45,46,47,48,],[13,13,13,13,13,32,13,13,-22,-23,13,-29,-30,-31,-32,13,13,13,13,32,-21,32,-25,-26,-27,-28,-24,]),'CUR':([2,3,5,7,10,11,12,13,14,15,16,17,18,19,20,31,32,33,34,35,36,37,44,45,46,47,48,],[15,15,15,15,15,33,15,15,-22,-23,15,-29,-30,-31,-32,15,15,15,15,33,-21,33,33,33,-27,-28,-24,]),'[':([2,3,5,7,10,12,13,16,31,32,33,34,],[16,16,16,16,16,16,16,16,16,16,16,16,]),'DEC':([2,3,5,7,10,12,13,16,31,32,33,34,],[17,17,17,17,17,17,17,17,17,17,17,17,]),'HEX':([2,3,5,7,10,12,13,16,31,32,33,34,],[18,18,18,18,18,18,18,18,18,18,18,18,]),'BIN':([2,3,5,7,10,12,13,16,31,32,33,34,],[19,19,19,19,19,19,19,19,19,19,19,19,]),'CHAR':([2,3,5,7,10,12,13,16,31,32,33,34,],[20,20,20,20,20,20,20,20,20,20,20,20,]),',':([5,8,11,14,15,17,18,19,20,22,29,30,35,36,40,42,44,45,46,47,48,],[25,27,-19,-22,-23,-29,-30,-31,-32,25,41,43,-20,-21,49,51,-25,-26,-27,-28,-24,]),')':([11,14,15,17,18,19,20,29,30,35,36,44,45,46,47,48,50,52,],[-19,-22,-23,-29,-30,-31,-32,40,42,-20,-21,-25,-26,-27,-28,-24,54,56,]),'+':([11,14,15,17,18,19,20,35,36,37,44,45,46,47,48,],[31,-22,-23,-29,-30,-31,-32,31,-21,31,-25,-26,-27,-28,-24,]),'/':([11,14,15,17,18,19,20,35,36,37,44,45,46,47,48,],[34,-22,-23,-29,-30,-31,-32,34,-21,34,34,34,-27,-28,-24,]),']':([14,15,17,18,19,20,36,37,44,45,46,47,48,],[-22,-23,-29,-30,-31,-32,-21,48,-25,-26,-27,-28,-24,]),}
 
 _lr_action = {}
 for _k, _v in _lr_action_items.items():
@@ -17,7 +17,7 @@ for _k, _v in _lr_action_items.items():
       _lr_action[_x][_k] = _y
 del _lr_action_items
 
-_lr_goto_items = {'stat':([0,4,],[1,22,]),'stat_val':([2,3,5,7,],[6,20,23,25,]),'arithmetic':([2,3,5,7,12,15,27,28,29,30,],[8,8,8,8,34,35,42,43,44,45,]),'address':([2,3,5,7,10,12,15,27,28,29,30,],[11,11,11,11,32,11,11,11,11,11,11,]),'numeric':([2,3,5,7,12,15,27,28,29,30,],[13,13,13,13,13,13,13,13,13,13,]),}
+_lr_goto_items = {'stat':([0,4,],[1,23,]),'stat_val':([2,3,5,7,],[6,21,24,26,]),'numeric':([2,3,5,7,10,],[8,8,8,8,29,]),'arithmetic':([2,3,5,7,10,12,13,16,31,32,33,34,],[11,11,11,11,11,35,36,37,44,45,46,47,]),'integer':([2,3,5,7,10,12,13,16,31,32,33,34,],[14,14,14,14,14,14,14,14,14,14,14,14,]),}
 
 _lr_goto = {}
 for _k, _v in _lr_goto_items.items():
@@ -27,38 +27,36 @@ for _k, _v in _lr_goto_items.items():
 del _lr_goto_items
 _lr_productions = [
   ("S' -> stat","S'",1,None,None,None),
-  ('stat -> LABEL LABEL stat_val','stat',3,'p_stat_with_label','grammar.py',107),
-  ('stat -> LABEL PSEUDO stat_val','stat',3,'p_stat_with_label','grammar.py',108),
-  ('stat -> LABEL stat_val','stat',2,'p_stat_without_label','grammar.py',114),
-  ('stat -> PSEUDO stat_val','stat',2,'p_stat_without_label','grammar.py',115),
-  ('stat -> stat NEWLINE stat','stat',3,'p_stat_repeat','grammar.py',121),
-  ('stat -> <empty>','stat',0,'p_stat_empty','grammar.py',127),
-  ('stat_val -> arithmetic','stat_val',1,'p_stat_val_direct','grammar.py',133),
-  ('stat_val -> LABEL','stat_val',1,'p_stat_val_direct','grammar.py',134),
-  ('stat_val -> BIT LABEL','stat_val',2,'p_stat_val','grammar.py',140),
-  ('stat_val -> arithmetic , LABEL','stat_val',3,'p_stat_val','grammar.py',141),
-  ('stat_val -> LABEL , LABEL','stat_val',3,'p_stat_val','grammar.py',142),
-  ('stat_val -> ( address )','stat_val',3,'p_stat_val','grammar.py',143),
-  ('stat_val -> ( LABEL )','stat_val',3,'p_stat_val','grammar.py',144),
-  ('stat_val -> ( address , LABEL )','stat_val',5,'p_stat_val','grammar.py',145),
-  ('stat_val -> ( LABEL , LABEL )','stat_val',5,'p_stat_val','grammar.py',146),
-  ('stat_val -> ( address ) , LABEL','stat_val',5,'p_stat_val','grammar.py',147),
-  ('stat_val -> ( LABEL ) , LABEL','stat_val',5,'p_stat_val','grammar.py',148),
-  ('stat_val -> <empty>','stat_val',0,'p_stat_val','grammar.py',149),
-  ('numeric -> # DEC','numeric',2,'p_numeric','grammar.py',156),
-  ('numeric -> # HEX','numeric',2,'p_numeric','grammar.py',157),
-  ('numeric -> # BIN','numeric',2,'p_numeric','grammar.py',158),
-  ('numeric -> # CHAR','numeric',2,'p_numeric','grammar.py',159),
-  ('address -> DEC','address',1,'p_address','grammar.py',166),
-  ('address -> HEX','address',1,'p_address','grammar.py',167),
-  ('address -> BIN','address',1,'p_address','grammar.py',168),
-  ('arithmetic -> - arithmetic','arithmetic',2,'p_arithmetic_uminus','grammar.py',175),
-  ('arithmetic -> numeric','arithmetic',1,'p_arithmetic_direct','grammar.py',181),
-  ('arithmetic -> address','arithmetic',1,'p_arithmetic_direct','grammar.py',182),
-  ('arithmetic -> CUR','arithmetic',1,'p_arithmetic_cur','grammar.py',188),
-  ('arithmetic -> [ arithmetic ]','arithmetic',3,'p_arithmetic_paren','grammar.py',194),
-  ('arithmetic -> arithmetic + arithmetic','arithmetic',3,'p_arithmetic_binary_op','grammar.py',200),
-  ('arithmetic -> arithmetic - arithmetic','arithmetic',3,'p_arithmetic_binary_op','grammar.py',201),
-  ('arithmetic -> arithmetic CUR arithmetic','arithmetic',3,'p_arithmetic_binary_op','grammar.py',202),
-  ('arithmetic -> arithmetic / arithmetic','arithmetic',3,'p_arithmetic_binary_op','grammar.py',203),
+  ('stat -> LABEL LABEL stat_val','stat',3,'p_stat_with_label','grammar.py',162),
+  ('stat -> LABEL PSEUDO stat_val','stat',3,'p_stat_with_label','grammar.py',163),
+  ('stat -> LABEL stat_val','stat',2,'p_stat_without_label','grammar.py',169),
+  ('stat -> PSEUDO stat_val','stat',2,'p_stat_without_label','grammar.py',170),
+  ('stat -> stat NEWLINE stat','stat',3,'p_stat_repeat','grammar.py',176),
+  ('stat -> <empty>','stat',0,'p_stat_empty','grammar.py',182),
+  ('stat_val -> numeric','stat_val',1,'p_stat_val_direct','grammar.py',188),
+  ('stat_val -> LABEL','stat_val',1,'p_stat_val_direct','grammar.py',189),
+  ('stat_val -> BIT LABEL','stat_val',2,'p_stat_val','grammar.py',200),
+  ('stat_val -> numeric , LABEL','stat_val',3,'p_stat_val','grammar.py',201),
+  ('stat_val -> LABEL , LABEL','stat_val',3,'p_stat_val','grammar.py',202),
+  ('stat_val -> ( numeric )','stat_val',3,'p_stat_val','grammar.py',203),
+  ('stat_val -> ( LABEL )','stat_val',3,'p_stat_val','grammar.py',204),
+  ('stat_val -> ( numeric , LABEL )','stat_val',5,'p_stat_val','grammar.py',205),
+  ('stat_val -> ( LABEL , LABEL )','stat_val',5,'p_stat_val','grammar.py',206),
+  ('stat_val -> ( numeric ) , LABEL','stat_val',5,'p_stat_val','grammar.py',207),
+  ('stat_val -> ( LABEL ) , LABEL','stat_val',5,'p_stat_val','grammar.py',208),
+  ('stat_val -> <empty>','stat_val',0,'p_stat_val','grammar.py',209),
+  ('numeric -> arithmetic','numeric',1,'p_numeric','grammar.py',216),
+  ('numeric -> # arithmetic','numeric',2,'p_numeric','grammar.py',217),
+  ('arithmetic -> - arithmetic','arithmetic',2,'p_arithmetic_uminus','grammar.py',226),
+  ('arithmetic -> integer','arithmetic',1,'p_arithmetic_direct','grammar.py',235),
+  ('arithmetic -> CUR','arithmetic',1,'p_arithmetic_cur','grammar.py',241),
+  ('arithmetic -> [ arithmetic ]','arithmetic',3,'p_arithmetic_paren','grammar.py',247),
+  ('arithmetic -> arithmetic + arithmetic','arithmetic',3,'p_arithmetic_binary_op','grammar.py',253),
+  ('arithmetic -> arithmetic - arithmetic','arithmetic',3,'p_arithmetic_binary_op','grammar.py',254),
+  ('arithmetic -> arithmetic CUR arithmetic','arithmetic',3,'p_arithmetic_binary_op','grammar.py',255),
+  ('arithmetic -> arithmetic / arithmetic','arithmetic',3,'p_arithmetic_binary_op','grammar.py',256),
+  ('integer -> DEC','integer',1,'p_integer','grammar.py',273),
+  ('integer -> HEX','integer',1,'p_integer','grammar.py',274),
+  ('integer -> BIN','integer',1,'p_integer','grammar.py',275),
+  ('integer -> CHAR','integer',1,'p_integer','grammar.py',276),
 ]

@@ -54,5 +54,5 @@ DONE    STA (DST),Y     ;terminate destination string
 ;
         .END
 """
-        parser = get_parser()
+        parser = get_parser(debug=False)
         parser.parse(sample)

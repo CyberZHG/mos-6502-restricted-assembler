@@ -2,12 +2,14 @@ import ply.lex as lex
 import ply.yacc as yacc
 
 __all__ = ['get_parser', 'ParseError',
-           'INSTANT', 'ADDRESS', 'CURRENT', 'ARITHMETIC', 'PSEUDO', 'LABEL', 'KEYWORD', 'INSTRUCTION', 'PARAMETER']
+           'INTEGER', 'INSTANT', 'ADDRESS', 'CURRENT', 'ARITHMETIC', 'PSEUDO', 'LABEL', 'KEYWORD', 'INSTRUCTION',
+           'PARAMETER', 'REGISTER', 'ADDRESSING']
 
 
 _PARSER = None
 _LEXER = None
 
+INTEGER = 'integer'
 INSTANT = 'instant'
 ADDRESS = 'address'
 CURRENT = 'current'
@@ -17,12 +19,33 @@ LABEL = 'label'
 KEYWORD = 'keyword'
 INSTRUCTION = 'instruction'
 PARAMETER = 'parameter'
+REGISTER = 'register'
+
+
+class ADDRESSING(object):
+
+    ACCUMULATOR = 'addressing_accumulator'
+    IMMEDIATE = 'addressing_immediate'
+    IMPLIED = 'addressing_implied'
+    RELATIVE = 'addressing_relative'
+    ABSOLUTE = 'addressing_absolute'
+    ZERO_PAGE = 'addressing_zero_page'
+    INDIRECT = 'addressing_indirect'
+    ABSOLUTE_INDEXED = 'addressing_absolute_indexed'
+    ZERO_PAGE_INDEXED = 'addressing_zero_page_indexed'
+    INDEXED_INDIRECT = 'addressing_indexed_indirect'
+    INDIRECT_INDEXED = 'addressing_indirect_indexed'
+
 
 KEYWORDS = {
     'ADC', 'AND', 'ASL', 'BCC', 'BCS', 'BEQ', 'BIT', 'BMI', 'BNE', 'BPL', 'BRK', 'BVC', 'BVS', 'CLC',
     'CLD', 'CLI', 'CLV', 'CMP', 'CPX', 'CPY', 'DEC', 'DEX', 'DEY', 'EOR', 'INC', 'INX', 'INY', 'JMP',
     'JSR', 'LDA', 'LDX', 'LDY', 'LSR', 'NOP', 'ORA', 'PHA', 'PHP', 'PLA', 'PLP', 'ROL', 'ROR', 'RTI',
     'RTS', 'SBC', 'SEC', 'SED', 'SEI', 'STA', 'STX', 'STY', 'TAX', 'TAY', 'TSX', 'TXA', 'TXS', 'TYA',
+}
+
+PSEUDOS = {
+    'ORG', '.ORG', '.BYTE', '.WORD', '.END'
 }
 
 
@@ -37,6 +60,19 @@ class ParseError(Exception):
 
     def __repr__(self):
         return f'ParseError("{self.info}")'
+
+
+def get_column(p, index=None):
+    column = 1
+    if index is None:
+        pos = p.lexpos
+    else:
+        pos = p.lexpos(index)
+    while pos - column >= 0:
+        if p.lexer.lexdata[pos - column] in {'\n', '\r'}:
+            break
+        column += 1
+    return column
 
 
 # Tokens
@@ -105,12 +141,7 @@ def t_NEWLINE(t):
 
 
 def t_error(t):
-    column = 1
-    while t.lexpos - column >= 0:
-        if t.lexer.lexdata[t.lexpos - column] in {'\n', '\r'}:
-            break
-        column += 1
-    raise ParseError(f"Illegal character '{t.value[0]}' found at line {t.lineno}, column {column}")
+    raise ParseError(f"Illegal character '{t.value[0]}' found at line {t.lineno}, column {get_column(t)}")
 
 
 # Syntax
@@ -121,17 +152,27 @@ precedence = (
 )
 
 
+def _get_keyword(p, label, index=None):
+    if label in KEYWORDS:
+        op = (KEYWORD, label)
+    elif label in PSEUDOS:
+        op = (PSEUDOS, label)
+    else:
+        raise ParseError(f"Unknown keyword at line {p.lineno(index)}, column {get_column(p, index=index)}: '{label}'")
+    return op
+
+
 def p_stat_with_label(p):
     """stat : LABEL LABEL stat_val
             | LABEL PSEUDO stat_val"""
-    p[0] = [(INSTRUCTION, p[1], p[2], p[3])]
+    p[0] = [(INSTRUCTION, (LABEL, p[1]), _get_keyword(p, p[2], index=2), p[3])]
     return p
 
 
 def p_stat_without_label(p):
     """stat : LABEL stat_val
             | PSEUDO stat_val"""
-    p[0] = [(INSTRUCTION, p[1], p[2])]
+    p[0] = [(INSTRUCTION, _get_keyword(p, p[1], index=1), p[2])]
     return p
 
 
@@ -148,21 +189,26 @@ def p_stat_empty(p):
 
 
 def p_stat_val_direct(p):
-    """stat_val : arithmetic
+    """stat_val : numeric
                 | LABEL"""
-    p[0] = (PARAMETER, p[1])
+    if p[1] == 'A':
+        p[0] = (ADDRESSING.ACCUMULATOR,)
+    elif isinstance(p[1], tuple) and p[1][0] == INSTANT:
+        p[0] = (ADDRESSING.IMMEDIATE, p[1])
+    else:
+        p[0] = (PARAMETER, p[1])
     return p
 
 
 def p_stat_val(p):
     """stat_val : BIT LABEL
-                | arithmetic ',' LABEL
+                | numeric ',' LABEL
                 | LABEL ',' LABEL
-                | '(' address ')'
+                | '(' numeric ')'
                 | '(' LABEL ')'
-                | '(' address ',' LABEL ')'
+                | '(' numeric ',' LABEL ')'
                 | '(' LABEL ',' LABEL ')'
-                | '(' address ')' ',' LABEL
+                | '(' numeric ')' ',' LABEL
                 | '(' LABEL ')' ',' LABEL
                 |
     """
@@ -171,36 +217,26 @@ def p_stat_val(p):
 
 
 def p_numeric(p):
-    """numeric : '#' DEC
-               | '#' HEX
-               | '#' BIN
-               | '#' CHAR
-    """
-    p[0] = (INSTANT, p[2])
-    return p
-
-
-def p_address(p):
-    """address : DEC
-               | HEX
-               | BIN
-    """
-    p[0] = (ADDRESS, p[1])
+    """numeric : arithmetic
+               | '#' arithmetic"""
+    if p[1] == '#':
+        p[0] = (INSTANT, p[2])
+    else:
+        p[0] = (ADDRESS, p[1])
     return p
 
 
 def p_arithmetic_uminus(p):
     """arithmetic : '-' arithmetic %prec UMINUS"""
-    if p[2][0] in {INSTANT, ADDRESS}:
+    if p[2][0] == INTEGER:
         p[0] = (p[2][0], -p[2][1])
     else:
-        p[0] = ((INSTANT, 0), '-', p[2])
+        p[0] = ((INTEGER, 0), '-', p[2])
     return p
 
 
 def p_arithmetic_direct(p):
-    """arithmetic : numeric
-                  | address"""
+    """arithmetic : integer"""
     p[0] = p[1]
     return p
 
@@ -223,7 +259,7 @@ def p_arithmetic_binary_op(p):
                   | arithmetic CUR arithmetic
                   | arithmetic '/' arithmetic
     """
-    if p[1][0] in {INSTANT, ADDRESS} and p[3][0] in {INSTANT, ADDRESS}:
+    if p[1][0] == INTEGER and p[3][0] == INTEGER:
         if p[2] == '+':
             p[0] = (p[1][0], p[1][1] + p[3][1])
         elif p[2] == '-':
@@ -237,14 +273,19 @@ def p_arithmetic_binary_op(p):
     return p
 
 
+def p_integer(p):
+    """integer : DEC
+              | HEX
+              | BIN
+              | CHAR
+    """
+    p[0] = (INTEGER, p[1])
+    return p
+
+
 def p_error(p):
     if p:
-        column = 1
-        while p.lexpos - column >= 0:
-            if p.lexer.lexdata[p.lexpos - column] in {'\n', '\r'}:
-                break
-            column += 1
-        raise ParseError(f"Syntax error at line {p.lineno}, column {column}: {repr(p.value)}")
+        raise ParseError(f"Syntax error at line {p.lineno}, column {get_column(p)}: {repr(p.value)}")
     else:
         raise ParseError(f"Syntax error at EOF")
 
