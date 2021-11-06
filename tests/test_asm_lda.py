@@ -67,6 +67,13 @@ class TestAssembleLDA(TestCase):
             (0xABCD, [0xAD, 0x00, 0x00]),
         ], results)
 
+        code = "ORG $ABCD\n" \
+               "LDA -*--*"
+        results = self.assembler.assemble(code, add_entry=False)
+        self.assertEqual([
+            (0xABCD, [0xAD, 0x00, 0x00]),
+        ], results)
+
         code = "LDA *+255"
         results = self.assembler.assemble(code, add_entry=False)
         self.assertEqual([

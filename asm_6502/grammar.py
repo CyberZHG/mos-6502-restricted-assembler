@@ -3,18 +3,11 @@ from collections import namedtuple
 import ply.lex as lex
 import ply.yacc as yacc
 
-__all__ = ['get_parser', 'ParseError',
-           'Integer', 'Addressing', 'CURRENT', 'ARITHMETIC', 'LABEL', 'KEYWORD', 'INSTRUCTION', 'KEYWORDS']
+__all__ = ['get_parser', 'ParseError', 'Integer', 'Addressing', 'Arithmetic', 'Instruction']
 
 
 _PARSER = None
 _LEXER = None
-
-CURRENT = 'current'
-ARITHMETIC = 'arithmetic'
-LABEL = 'label'
-KEYWORD = 'keyword'
-INSTRUCTION = 'instruction'
 
 
 class Integer(namedtuple('Integer', ['is_word', 'value'])):
@@ -56,10 +49,6 @@ class Integer(namedtuple('Integer', ['is_word', 'value'])):
     def high_byte(self):
         return Integer(is_word=False, value=(self.value >> 8) & 0xFF)
 
-    @classmethod
-    def zero(cls):
-        return cls(is_word=False, value=0)
-
 
 class Addressing(namedtuple('Addressing', ['mode', 'address', 'register'], defaults=[None, None, None])):
 
@@ -73,16 +62,33 @@ class Addressing(namedtuple('Addressing', ['mode', 'address', 'register'], defau
     INDIRECT_INDEXED = 'indirect_indexed'
 
 
-KEYWORDS = {
-    'ADC', 'AND', 'ASL', 'BCC', 'BCS', 'BEQ', 'BIT', 'BMI', 'BNE', 'BPL', 'BRK', 'BVC', 'BVS', 'CLC',
-    'CLD', 'CLI', 'CLV', 'CMP', 'CPX', 'CPY', 'DEC', 'DEX', 'DEY', 'EOR', 'INC', 'INX', 'INY', 'JMP',
-    'JSR', 'LDA', 'LDX', 'LDY', 'LSR', 'NOP', 'ORA', 'PHA', 'PHP', 'PLA', 'PLP', 'ROL', 'ROR', 'RTI',
-    'RTS', 'SBC', 'SEC', 'SED', 'SEI', 'STA', 'STX', 'STY', 'TAX', 'TAY', 'TSX', 'TXA', 'TXS', 'TYA',
-}
+class Arithmetic(namedtuple('Arithmetic', ['mode', 'param'], defaults=[None, None])):
 
-PSEUDOS = {
-    'ORG', '.ORG', '.BYTE', '.WORD', '.END'
-}
+    CURRENT = 'current'
+    LABEL = 'label'
+
+    ADD = 'add'
+    SUB = 'sub'
+    MUL = 'mul'
+    DIV = 'div'
+    NEG = 'neg'
+
+    LOW_BYTE = 'low_byte'
+    HIGH_BYTE = 'high_byte'
+
+
+class Instruction(namedtuple('Instruction', ['label', 'op', 'addressing', 'line_num'])):
+
+    KEYWORDS = {
+        'ADC', 'AND', 'ASL', 'BCC', 'BCS', 'BEQ', 'BIT', 'BMI', 'BNE', 'BPL', 'BRK', 'BVC', 'BVS', 'CLC',
+        'CLD', 'CLI', 'CLV', 'CMP', 'CPX', 'CPY', 'DEC', 'DEX', 'DEY', 'EOR', 'INC', 'INX', 'INY', 'JMP',
+        'JSR', 'LDA', 'LDX', 'LDY', 'LSR', 'NOP', 'ORA', 'PHA', 'PHP', 'PLA', 'PLP', 'ROL', 'ROR', 'RTI',
+        'RTS', 'SBC', 'SEC', 'SED', 'SEI', 'STA', 'STX', 'STY', 'TAX', 'TAY', 'TSX', 'TXA', 'TXS', 'TYA',
+    }
+
+    PSEUDOS = {
+        'ORG', '.ORG', '.BYTE', '.WORD', '.END'
+    }
 
 
 class ParseError(Exception):
@@ -98,7 +104,7 @@ class ParseError(Exception):
         return f'ParseError("{self.info}")'
 
 
-def get_column(p, index=None):
+def _get_column(p, index=None):
     column = 1
     if index is None:
         pos = p.lexpos
@@ -139,7 +145,7 @@ def t_LABEL(t):
     r"""[a-zA-Z_][a-zA-Z0-9_]*"""
     if t.value in {'A', 'X', 'Y'}:
         t.type = 'REGISTER'
-    elif t.value in KEYWORDS or t.value in PSEUDOS:
+    elif t.value in Instruction.KEYWORDS or t.value in Instruction.PSEUDOS:
         t.type = 'KEYWORD'
     return t
 
@@ -194,7 +200,7 @@ def t_NEWLINE(t):
 
 
 def t_error(t):
-    raise ParseError(f"Illegal character '{t.value[0]}' found at line {t.lineno}, column {get_column(t)}")
+    raise ParseError(f"Illegal character '{t.value[0]}' found at line {t.lineno}, column {_get_column(t)}")
 
 
 # Syntax
@@ -207,13 +213,13 @@ precedence = (
 
 def p_stat_with_label(p):
     """stat : LABEL KEYWORD stat_val"""
-    p[0] = [(INSTRUCTION, (LABEL, p[1]), (KEYWORD, p[2]), p[3], p.lineno(1))]
+    p[0] = [Instruction(label=p[1], op=p[2], addressing=p[3], line_num=p.lineno(1))]
     return p
 
 
 def p_stat_without_label(p):
     """stat : KEYWORD stat_val"""
-    p[0] = [(INSTRUCTION, (KEYWORD, p[1]), p[2], p.lineno(1))]
+    p[0] = [Instruction(label=None, op=p[1], addressing=p[2], line_num=p.lineno(1))]
     return p
 
 
@@ -235,7 +241,7 @@ def p_stat_val_accumulator(p):
         p[0] = Addressing(Addressing.ACCUMULATOR)
     else:
         raise ParseError(f"Register {p[1]} can not be used as an address at "
-                         f"{p.lineno(1)}, column {get_column(p, index=1)}")
+                         f"{p.lineno(1)}, column {_get_column(p, index=1)}")
     return p
 
 
@@ -261,7 +267,7 @@ def p_stat_val_indexed(p):
     """stat_val : arithmetic ',' REGISTER"""
     if p[3][0] not in {'X', 'Y'}:
         raise ParseError(f"Only registers X and Y can be used for indexing, found {p[3][0]} at "
-                         f"{p.lineno(3)}, column {get_column(p, index=3)}")
+                         f"{p.lineno(3)}, column {_get_column(p, index=3)}")
     p[0] = Addressing(Addressing.INDEXED, address=p[1], register=p[3])
     return p
 
@@ -270,7 +276,7 @@ def p_stat_val_indexed_indirect(p):
     """stat_val : '(' arithmetic ',' REGISTER ')'"""
     if p[4][0] != 'X':
         raise ParseError(f"Only register X can be used for indexed indirect addressing, found {p[4][0]} at "
-                         f"{p.lineno(4)}, column {get_column(p, index=4)}")
+                         f"{p.lineno(4)}, column {_get_column(p, index=4)}")
     p[0] = Addressing(Addressing.INDEXED_INDIRECT, address=p[2], register=p[4])
     return p
 
@@ -279,7 +285,7 @@ def p_stat_val_indirect_indexed(p):
     """stat_val : '(' arithmetic ')' ',' REGISTER"""
     if p[5][0] != 'Y':
         raise ParseError(f"Only register Y can be used for indexed indirect addressing, found {p[5][0]} at "
-                         f"{p.lineno(5)}, column {get_column(p, index=5)}")
+                         f"{p.lineno(5)}, column {_get_column(p, index=5)}")
     p[0] = Addressing(Addressing.INDIRECT_INDEXED, address=p[2], register=p[5])
     return p
 
@@ -290,12 +296,12 @@ def p_stat_val_immediate_bit(p):
         if isinstance(p[2], Integer):
             p[0] = Addressing(Addressing.IMMEDIATE, address=p[2].low_byte())
         else:
-            p[0] = Addressing(Addressing.IMMEDIATE, address=(ARITHMETIC, 'lo', p[2]))
+            p[0] = Addressing(Addressing.IMMEDIATE, address=Arithmetic(Arithmetic.LOW_BYTE, p[2]))
     else:
         if isinstance(p[2], Integer):
             p[0] = Addressing(Addressing.IMMEDIATE, address=p[2].high_byte())
         else:
-            p[0] = Addressing(Addressing.IMMEDIATE, address=(ARITHMETIC, 'hi', p[2]))
+            p[0] = Addressing(Addressing.IMMEDIATE, address=Arithmetic(Arithmetic.HIGH_BYTE, p[2]))
     return p
 
 
@@ -310,7 +316,7 @@ def p_arithmetic_uminus(p):
     if isinstance(p[2], Integer):
         p[0] = -p[2]
     else:
-        p[0] = (ARITHMETIC, '-', Integer.zero(), p[2])
+        p[0] = Arithmetic(Arithmetic.NEG, p[2])
     return p
 
 
@@ -322,13 +328,13 @@ def p_arithmetic_direct(p):
 
 def p_arithmetic_label(p):
     """arithmetic : LABEL"""
-    p[0] = (LABEL, p[1])
+    p[0] = Arithmetic(Arithmetic.LABEL, p[1])
     return p
 
 
 def p_arithmetic_cur(p):
     """arithmetic : CUR"""
-    p[0] = (CURRENT,)
+    p[0] = Arithmetic(Arithmetic.CURRENT)
     return p
 
 
@@ -354,7 +360,14 @@ def p_arithmetic_binary_op(p):
         else:
             p[0] = p[1] * p[3]
     else:
-        p[0] = (ARITHMETIC, p[2], p[1], p[3])
+        if p[2] == '+':
+            p[0] = Arithmetic(Arithmetic.ADD, (p[1], p[3]))
+        elif p[2] == '-':
+            p[0] = Arithmetic(Arithmetic.SUB, (p[1], p[3]))
+        elif p[2] == '/':
+            p[0] = Arithmetic(Arithmetic.DIV, (p[1], p[3]))
+        else:
+            p[0] = Arithmetic(Arithmetic.MUL, (p[1], p[3]))
     return p
 
 
@@ -370,7 +383,7 @@ def p_integer(p):
 
 def p_error(p):
     if p:
-        raise ParseError(f"Syntax error at line {p.lineno}, column {get_column(p)}: {repr(p.value)}")
+        raise ParseError(f"Syntax error at line {p.lineno}, column {_get_column(p)}: {repr(p.value)}")
     else:
         raise ParseError(f"Syntax error at EOF")
 

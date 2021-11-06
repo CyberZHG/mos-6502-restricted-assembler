@@ -1,7 +1,7 @@
 from typing import Union, List, Iterable
 from functools import wraps
 
-from .grammar import (get_parser, KEYWORDS, LABEL, Integer, Addressing, ARITHMETIC, CURRENT)
+from .grammar import get_parser, Integer, Addressing, Arithmetic, Instruction
 
 
 __all__ = ['Assembler', 'AssembleError']
@@ -45,26 +45,21 @@ class Assembler(object):
 
     def assemble(self,
                  instructions: Union[str, List],
-                 add_entry=True):
+                 add_entry: bool = True):
         if isinstance(instructions, str):
             parser = get_parser()
             instructions = parser.parse(instructions)
         # Preprocess and calculate offsets
         self.reset()
         for i, inst in enumerate(instructions):
-            self.line_number = inst[-1]
-            if inst[1][0] == LABEL:
-                if inst[2][1] != 'ORG':
-                    self.label_offsets[inst[1][1]] = self.code_offset
-                offset = getattr(self, f'pre_{inst[2][1]}')(inst[3])
-                if inst[2][1] == 'ORG':
-                    self.label_offsets[inst[1][1]] = self.code_offset
-                if self.code_start == -1 and inst[2][1] in KEYWORDS:
-                    self.code_start = self.code_offset
-            else:
-                offset = getattr(self, f'pre_{inst[1][1]}')(inst[2])
-                if self.code_start == -1 and inst[1][1] in KEYWORDS:
-                    self.code_start = self.code_offset
+            self.line_number = inst.line_num
+            if inst.label is not None and inst.op != 'ORG':
+                self.label_offsets[inst.label] = self.code_offset
+            offset = getattr(self, f'pre_{inst.op}')(inst.addressing)
+            if inst.label is not None and inst.op == 'ORG':
+                self.label_offsets[inst.label] = self.code_offset
+            if self.code_start == -1 and inst.op in Instruction.KEYWORDS:
+                self.code_start = self.code_offset
             self.code_offsets.append(self.code_offset)
             self.code_offset += offset
             if self.code_offset >= self.max_memory:
@@ -73,12 +68,9 @@ class Assembler(object):
                                     f"at line {self.line_number}")
         # Generate codes
         for i, inst in enumerate(instructions):
-            self.line_number = inst[-1]
+            self.line_number = inst.line_num
             self.code_offset = self.code_offsets[i]
-            if inst[1][0] == LABEL:
-                getattr(self, f'gen_{inst[2][1]}')(i, inst[3])
-            else:
-                getattr(self, f'gen_{inst[1][1]}')(i, inst[2])
+            getattr(self, f'gen_{inst.op}')(i, inst.addressing)
         while len(self.codes) and len(self.codes[-1][1]) == 0:
             del self.codes[-1]
         if add_entry:
@@ -121,56 +113,56 @@ class Assembler(object):
             return func(self, index, addressing)
         return inner
 
-    def _resolve_address_recur(self, address):
-        if isinstance(address, Integer):
-            return address
-        if address[0] == CURRENT:
+    def _resolve_address_recur(self, arithmetic: Union[Integer, Arithmetic]) -> Integer:
+        if isinstance(arithmetic, Integer):
+            return arithmetic
+        if arithmetic.mode == Arithmetic.CURRENT:
             return Integer(is_word=True, value=self.code_offset)
-        if address[0] == LABEL:
-            if address[1] not in self.label_offsets:
-                raise AssembleError(f"Can not resolve label '{address[1]}' at line {self.line_number}")
-            return Integer(is_word=True, value=self.label_offsets[address[1]])
-        if address[0] == ARITHMETIC:
-            op = address[1]
-            if op == '+':
-                return self._resolve_address_recur(address[2]) + self._resolve_address_recur(address[3])
-            if op == '-':
-                return self._resolve_address_recur(address[2]) - self._resolve_address_recur(address[3])
-            if op == '*':
-                return self._resolve_address_recur(address[2]) * self._resolve_address_recur(address[3])
-            if op == '/':
-                return self._resolve_address_recur(address[2]) // self._resolve_address_recur(address[3])
-            if op == 'lo':
-                return self._resolve_address_recur(address[2]).low_byte()
-            if op == 'hi':
-                return self._resolve_address_recur(address[2]).high_byte()
+        if arithmetic.mode == Arithmetic.LABEL:
+            if arithmetic.param not in self.label_offsets:
+                raise AssembleError(f"Can not resolve label '{arithmetic.param}' at line {self.line_number}")
+            return Integer(is_word=True, value=self.label_offsets[arithmetic.param])
+        if arithmetic.mode == Arithmetic.ADD:
+            return self._resolve_address_recur(arithmetic.param[0]) + self._resolve_address_recur(arithmetic.param[1])
+        if arithmetic.mode == Arithmetic.SUB:
+            return self._resolve_address_recur(arithmetic.param[0]) - self._resolve_address_recur(arithmetic.param[1])
+        if arithmetic.mode == Arithmetic.MUL:
+            return self._resolve_address_recur(arithmetic.param[0]) * self._resolve_address_recur(arithmetic.param[1])
+        if arithmetic.mode == Arithmetic.DIV:
+            return self._resolve_address_recur(arithmetic.param[0]) // self._resolve_address_recur(arithmetic.param[1])
+        if arithmetic.mode == Arithmetic.NEG:
+            return -self._resolve_address_recur(arithmetic.param)
+        if arithmetic.mode == Arithmetic.LOW_BYTE:
+            return self._resolve_address_recur(arithmetic.param).low_byte()
+        if arithmetic.mode == Arithmetic.HIGH_BYTE:
+            return self._resolve_address_recur(arithmetic.param).high_byte()
 
-    def _resolve_address(self, addressing):
+    def _resolve_address(self, addressing: Addressing) -> Addressing:
         return Addressing(mode=addressing.mode,
                           address=self._resolve_address_recur(addressing.address),
                           register=addressing.register)
 
-    def _extend_byte_address(self, code, addressing):
+    def _extend_byte_address(self, code, addressing: Addressing):
         self.codes[-1][1].extend([code, addressing.address.value])
 
-    def _extend_word_address(self, code, addressing):
+    def _extend_word_address(self, code, addressing: Addressing):
         self.codes[-1][1].extend([code, addressing.address.low_byte().value, addressing.address.high_byte().value])
 
     @_addressing_guard(allowed={Addressing.ADDRESS})
-    def pre_ORG(self, address):
-        self.code_offset = self._resolve_address(address).address.value
+    def pre_ORG(self, addressing: Addressing):
+        self.code_offset = self._resolve_address(addressing).address.value
         return 0
 
     @_assemble_guard
-    def gen_ORG(self, index, addressing):
+    def gen_ORG(self, index, addressing: Addressing):
         pass
 
     @_addressing_guard(allowed={Addressing.ADDRESS, Addressing.INDIRECT})
-    def pre_JMP(self, addressing):
+    def pre_JMP(self, addressing: Addressing):
         return 3
 
     @_assemble_guard
-    def gen_JMP(self, index, addressing):
+    def gen_JMP(self, index, addressing: Addressing):
         if addressing.mode == Addressing.ADDRESS:
             self._extend_word_address(0x4C, addressing)
         elif addressing.mode == Addressing.INDIRECT:
@@ -178,13 +170,13 @@ class Assembler(object):
 
     @_addressing_guard(allowed={Addressing.IMMEDIATE, Addressing.ADDRESS, Addressing.INDEXED,
                                 Addressing.INDEXED_INDIRECT, Addressing.INDIRECT_INDEXED})
-    def pre_LDA(self, addressing):
+    def pre_LDA(self, addressing: Addressing):
         if addressing.mode in {Addressing.ADDRESS, Addressing.INDEXED}:
             return 2 if self.fit_zero_pages[-1] else 3
         return 2
 
     @_assemble_guard
-    def gen_LDA(self, index, addressing):
+    def gen_LDA(self, index, addressing: Addressing):
         if addressing.mode == Addressing.IMMEDIATE:
             self._extend_byte_address(0xA9, addressing)
         elif addressing.mode == Addressing.ADDRESS:
@@ -205,13 +197,13 @@ class Assembler(object):
             self._extend_byte_address(0xB1, addressing)
 
     @_addressing_guard(allowed={Addressing.IMMEDIATE, Addressing.ADDRESS, Addressing.INDEXED})
-    def pre_LDX(self, addressing):
+    def pre_LDX(self, addressing: Addressing):
         if addressing.mode in {Addressing.ADDRESS, Addressing.INDEXED}:
             return 2 if self.fit_zero_pages[-1] else 3
         return 2
 
     @_assemble_guard
-    def gen_LDX(self, index, addressing):
+    def gen_LDX(self, index, addressing: Addressing):
         if addressing.mode == Addressing.IMMEDIATE:
             self._extend_byte_address(0xA2, addressing)
         elif addressing.mode == Addressing.ADDRESS:
@@ -228,13 +220,13 @@ class Assembler(object):
                 self._extend_word_address(0xBE, addressing)
 
     @_addressing_guard(allowed={Addressing.IMMEDIATE, Addressing.ADDRESS, Addressing.INDEXED})
-    def pre_LDY(self, addressing):
+    def pre_LDY(self, addressing: Addressing):
         if addressing.mode in {Addressing.ADDRESS, Addressing.INDEXED}:
             return 2 if self.fit_zero_pages[-1] else 3
         return 2
 
     @_assemble_guard
-    def gen_LDY(self, index, addressing):
+    def gen_LDY(self, index, addressing: Addressing):
         if addressing.mode == Addressing.IMMEDIATE:
             self._extend_byte_address(0xA0, addressing)
         elif addressing.mode == Addressing.ADDRESS:
