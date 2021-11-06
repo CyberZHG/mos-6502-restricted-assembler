@@ -78,13 +78,13 @@ START ORG $0080
 LDA #10             ; Load $0A into the accumulator
 LDA #LO $ABCD       ; Load $CD into the accumulator
 LDA #HI $ABCD       ; Load $AB into the accumulator
-LDA $00             ; Load accumulator from zero-page address $00
-LDA $10,X           ; Load accumulator from zero-page address ($10 + X) % $0100
-LDA $ABCD           ; Load accumulator from address $ABCD
-LDA $ABCD,X         ; Load accumulator from address $ABCD + X
-LDA $ABCD,Y         ; Load accumulator from address $ABCD + Y
-LDA ($40,X)         ; Load accumulator from the 2-byte address contained in ($40 + X) % $0100
-LDA ($40),Y         ; Load accumulator from (the 2-byte address contained in $40) + Y
+LDA $00             ; Load into accumulator from zero-page address $00
+LDA $10,X           ; Load into accumulator from zero-page address ($10 + X) % $0100
+LDA $ABCD           ; Load into accumulator from address $ABCD
+LDA $ABCD,X         ; Load into accumulator from address $ABCD + X
+LDA $ABCD,Y         ; Load into accumulator from address $ABCD + Y
+LDA ($40,X)         ; Load into accumulator from the 2-byte address contained in ($40 + X) % $0100
+LDA ($40),Y         ; Load into accumulator from (the 2-byte address contained in $40) + Y
 ```
 
 Special rules for zero-page addressing:
@@ -94,4 +94,14 @@ LDA $0010           ; This is not zero-page addressing as the input contains a w
 LDA *               ; This is not zero-page addressing no matter what the current code address is
 LDA LABEL           ; This is not zero-page addressing no matter where LABEL points to
 LDA $FF+10-10       ; This is not zero-page addressing as the intermedidate result is greater than a byte
+```
+
+### LDX 
+
+```
+LDX #10             ; Load $0A into the X
+LDX $00             ; Load into X from zero-page address $00
+LDX $10,Y           ; Load into X from zero-page address ($10 + Y) % $0100
+LDX $ABCD           ; Load into X from address $ABCD
+LDX $ABCD,Y         ; Load into X from address $ABCD + Y
 ```

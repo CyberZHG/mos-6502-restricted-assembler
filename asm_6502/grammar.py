@@ -26,8 +26,6 @@ class Integer(namedtuple('Integer', ['is_word', 'value'])):
     __slots__ = ()
 
     def __add__(self, other):
-        if not isinstance(other, Integer):
-            other = Integer.const(other)
         value = self.value + other.value
         return Integer(
             is_word=self.is_word or other.is_word or value > 0xFF,
@@ -65,10 +63,6 @@ class Integer(namedtuple('Integer', ['is_word', 'value'])):
     @classmethod
     def zero(cls):
         return cls(is_word=False, value=0)
-
-    @classmethod
-    def const(cls, value):
-        return cls(is_word=value <= 0xFF, value=value)
 
 
 class ADDRESSING(object):

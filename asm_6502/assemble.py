@@ -150,6 +150,12 @@ class Assembler(object):
             return address[0], self._resolve_address_recur(address[1][1]), address[-1][-1]
         return address[0], self._resolve_address_recur(address[1][1])
 
+    def _extend_byte_address(self, code, address):
+        self.codes[-1][1].extend([code, address[1].value])
+
+    def _extend_word_address(self, code, address):
+        self.codes[-1][1].extend([code, address[1].low_byte().value, address[1].high_byte().value])
+
     @_addressing_guard(allowed={ADDRESSING.ADDRESS})
     def pre_ORG(self, address):
         self.code_offset = self._resolve_address(address)[1].value
@@ -166,9 +172,9 @@ class Assembler(object):
     @_assemble_guard
     def gen_JMP(self, index, address):
         if address[0] == ADDRESSING.ADDRESS:
-            self.codes[-1][1].extend([0x4C, address[1].low_byte().value, address[1].high_byte().value])
+            self._extend_word_address(0x4C, address)
         elif address[0] == ADDRESSING.INDIRECT:
-            self.codes[-1][1].extend([0x6C, address[1].low_byte().value, address[1].high_byte().value])
+            self._extend_word_address(0x6C, address)
 
     @_addressing_guard(allowed={ADDRESSING.IMMEDIATE, ADDRESSING.ADDRESS, ADDRESSING.INDEXED,
                                 ADDRESSING.INDEXED_INDIRECT, ADDRESSING.INDIRECT_INDEXED})
@@ -180,23 +186,23 @@ class Assembler(object):
     @_assemble_guard
     def gen_LDA(self, index, address):
         if address[0] == ADDRESSING.IMMEDIATE:
-            self.codes[-1][1].extend([0xA9, address[1].value])
+            self._extend_byte_address(0xA9, address)
         elif address[0] == ADDRESSING.ADDRESS:
             if self.fit_zero_pages[index]:
-                self.codes[-1][1].extend([0xA5, address[1].value])
+                self._extend_byte_address(0xA5, address)
             else:
-                self.codes[-1][1].extend([0xAD, address[1].low_byte().value, address[1].high_byte().value])
+                self._extend_word_address(0xAD, address)
         elif address[0] == ADDRESSING.INDEXED:
             if self.fit_zero_pages[index] and address[-1] == 'X':
-                self.codes[-1][1].extend([0xB5, address[1].value])
+                self._extend_byte_address(0xB5, address)
             elif address[-1] == 'X':
-                self.codes[-1][1].extend([0xBD, address[1].low_byte().value, address[1].high_byte().value])
+                self._extend_word_address(0xBD, address)
             else:
-                self.codes[-1][1].extend([0xB9, address[1].low_byte().value, address[1].high_byte().value])
+                self._extend_word_address(0xB9, address)
         elif address[0] == ADDRESSING.INDEXED_INDIRECT:
-            self.codes[-1][1].extend([0xA1, address[1].value])
+            self._extend_byte_address(0xA1, address)
         elif address[0] == ADDRESSING.INDIRECT_INDEXED:
-            self.codes[-1][1].extend([0xB1, address[1].value])
+            self._extend_byte_address(0xB1, address)
 
     @_addressing_guard(allowed={ADDRESSING.IMMEDIATE, ADDRESSING.ADDRESS, ADDRESSING.INDEXED})
     def pre_LDX(self, address):
@@ -207,16 +213,16 @@ class Assembler(object):
     @_assemble_guard
     def gen_LDX(self, index, address):
         if address[0] == ADDRESSING.IMMEDIATE:
-            self.codes[-1][1].extend([0xA2, address[1].value])
+            self._extend_byte_address(0xA2, address)
         elif address[0] == ADDRESSING.ADDRESS:
             if self.fit_zero_pages[index]:
-                self.codes[-1][1].extend([0xA6, address[1].value])
+                self._extend_byte_address(0xA6, address)
             else:
-                self.codes[-1][1].extend([0xB6, address[1].low_byte().value, address[1].high_byte().value])
+                self._extend_word_address(0xAE, address)
         elif address[0] == ADDRESSING.INDEXED:
-            if self.fit_zero_pages[index] and address[-1] == 'X':
-                self.codes[-1][1].extend([0xB5, address[1].value])
-            elif address[-1] == 'X':
-                self.codes[-1][1].extend([0xAE, address[1].low_byte().value, address[1].high_byte().value])
+            if address[-1] == 'X':
+                raise AssembleError(f"Can not use X as the index register in LDX at line {self.line_number}")
+            if self.fit_zero_pages[index]:
+                self._extend_byte_address(0xB6, address)
             else:
-                self.codes[-1][1].extend([0xBE, address[1].low_byte().value, address[1].high_byte().value])
+                self._extend_word_address(0xBE, address)

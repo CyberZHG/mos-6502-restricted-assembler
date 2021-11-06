@@ -3,7 +3,7 @@ from unittest import TestCase
 from asm_6502 import Assembler, AssembleError
 
 
-class TestParseAddressing(TestCase):
+class TestAssembleLDA(TestCase):
 
     def setUp(self) -> None:
         self.assembler = Assembler()
