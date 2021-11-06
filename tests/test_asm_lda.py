@@ -57,20 +57,20 @@ class TestParseAddressing(TestCase):
         code = "START LDA START"
         results = self.assembler.assemble(code, add_entry=False)
         self.assertEqual([
-            (0x0000, [0xA5, 0x00]),
+            (0x0000, [0xAD, 0x00, 0x00]),
         ], results)
 
         code = "ORG $ABCD\n" \
                "LDA *-*"
         results = self.assembler.assemble(code, add_entry=False)
         self.assertEqual([
-            (0xABCD, [0xA5, 0x00]),
+            (0xABCD, [0xAD, 0x00, 0x00]),
         ], results)
 
         code = "LDA *+255"
         results = self.assembler.assemble(code, add_entry=False)
         self.assertEqual([
-            (0x0000, [0xA5, 0xFF]),
+            (0x0000, [0xAD, 0xFF, 0x00]),
         ], results)
 
     def test_lda_zero_page_x(self):
@@ -89,6 +89,19 @@ class TestParseAddressing(TestCase):
             (0x0000, [0xAD, 0xCD, 0xAB, 0xAD, 0xCD, 0xAB]),
         ], results)
 
+        code = "LDA $00CD\n" \
+               "LDA $00CD"
+        results = self.assembler.assemble(code, add_entry=False)
+        self.assertEqual([
+            (0x0000, [0xAD, 0xCD, 0x00, 0xAD, 0xCD, 0x00]),
+        ], results)
+
+        code = "LDA $FF+10-10"
+        results = self.assembler.assemble(code, add_entry=False)
+        self.assertEqual([
+            (0x0000, [0xAD, 0xFF, 0x00]),
+        ], results)
+
     def test_lda_absolute_indexed(self):
         code = "LDA $ABCD,X\n" \
                "LDA $ABCD,Y"
@@ -102,6 +115,13 @@ class TestParseAddressing(TestCase):
         results = self.assembler.assemble(code, add_entry=False)
         self.assertEqual([
             (0x0000, [0xB5, 0x10, 0xB9, 0x10, 0x00]),
+        ], results)
+
+        code = "LDA $0010,X\n" \
+               "LDA $0010,Y"
+        results = self.assembler.assemble(code, add_entry=False)
+        self.assertEqual([
+            (0x0000, [0xBD, 0x10, 0x00, 0xB9, 0x10, 0x00]),
         ], results)
 
     def test_lda_indexed_indirect(self):

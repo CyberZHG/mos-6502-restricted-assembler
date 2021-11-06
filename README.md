@@ -86,3 +86,12 @@ LDA $ABCD,Y         ; Load accumulator from address $ABCD + Y
 LDA ($40,X)         ; Load accumulator from the 2-byte address contained in ($40 + X) % $0100
 LDA ($40),Y         ; Load accumulator from (the 2-byte address contained in $40) + Y
 ```
+
+Special rules for zero-page addressing:
+
+```
+LDA $0010           ; This is not zero-page addressing as the input contains a word
+LDA *               ; This is not zero-page addressing no matter what the current code address is
+LDA LABEL           ; This is not zero-page addressing no matter where LABEL points to
+LDA $FF+10-10       ; This is not zero-page addressing as the intermedidate result is greater than a byte
+```

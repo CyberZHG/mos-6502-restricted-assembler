@@ -2,7 +2,7 @@ from typing import Union, List, Iterable
 from functools import wraps
 
 from .grammar import (get_parser, KEYWORDS, LABEL,
-                      ADDRESSING, ADDRESS, INTEGER, ARITHMETIC, CURRENT)
+                      Integer, ADDRESSING, ADDRESS, ARITHMETIC, CURRENT)
 
 
 __all__ = ['Assembler', 'AssembleError']
@@ -84,7 +84,7 @@ class Assembler(object):
             del self.codes[-1]
         if add_entry:
             self.code_offset = 0xFFFC
-            self.gen_JMP(None, (ADDRESSING.ADDRESS, (ADDRESS, (INTEGER, self.code_start))))
+            self.gen_JMP(None, (ADDRESSING.ADDRESS, (ADDRESS, Integer(is_word=True, value=self.code_start))))
         return self.codes
 
     def _addressing_guard(allowed: Iterable[str]):
@@ -99,7 +99,7 @@ class Assembler(object):
                 if address[0] in {ADDRESSING.ADDRESS, ADDRESSING.INDEXED}:
                     try:
                         resolved = self._resolve_address(address)
-                        if resolved[1] <= 0xFF:
+                        if isinstance(resolved[1], Integer) and not resolved[1].is_word and resolved[1].value <= 0xFF:
                             self.fit_zero_pages[-1] = True
                     except AssembleError as e:
                         pass
@@ -115,21 +115,21 @@ class Assembler(object):
                 self.codes.append((self.code_offset, []))
             address = self._resolve_address(address)
             if address[0] in {ADDRESSING.IMMEDIATE, ADDRESSING.INDEXED_INDIRECT, ADDRESSING.INDIRECT_INDEXED} \
-                    and address[1] > 0xFF:
-                raise AssembleError(f"The value {hex(address[1])} is too large for the addressing "
+                    and address[1].value > 0xFF:
+                raise AssembleError(f"The value {hex(address[1].value)} is too large for the addressing "
                                     f"at line {self.line_number}")
             return func(self, index, address)
         return inner
 
     def _resolve_address_recur(self, address):
-        if address[0] == INTEGER:
-            return address[1]
+        if isinstance(address, Integer):
+            return address
         if address[0] == CURRENT:
-            return self.code_offset
+            return Integer(is_word=True, value=self.code_offset)
         if address[0] == LABEL:
             if address[1] not in self.label_offsets:
                 raise AssembleError(f"Can not resolve label '{address[1]}' at line {self.line_number}")
-            return self.label_offsets[address[1]]
+            return Integer(is_word=True, value=self.label_offsets[address[1]])
         if address[0] == ARITHMETIC:
             op = address[1]
             if op == '+':
@@ -141,26 +141,18 @@ class Assembler(object):
             if op == '/':
                 return self._resolve_address_recur(address[2]) // self._resolve_address_recur(address[3])
             if op == 'lo':
-                return self._low_byte(self._resolve_address_recur(address[2]))
+                return self._resolve_address_recur(address[2]).low_byte()
             if op == 'hi':
-                return self._high_byte(self._resolve_address_recur(address[2]))
+                return self._resolve_address_recur(address[2]).high_byte()
 
     def _resolve_address(self, address):
         if address[0] == ADDRESSING.INDEXED:
             return address[0], self._resolve_address_recur(address[1][1]), address[-1][-1]
         return address[0], self._resolve_address_recur(address[1][1])
 
-    @staticmethod
-    def _low_byte(word):
-        return word & 0xFF
-
-    @staticmethod
-    def _high_byte(word):
-        return (word >> 8) & 0xFF
-
     @_addressing_guard(allowed={ADDRESSING.ADDRESS})
     def pre_ORG(self, address):
-        self.code_offset = self._resolve_address(address)[1]
+        self.code_offset = self._resolve_address(address)[1].value
         return 0
 
     @_assemble_guard
@@ -174,9 +166,9 @@ class Assembler(object):
     @_assemble_guard
     def gen_JMP(self, index, address):
         if address[0] == ADDRESSING.ADDRESS:
-            self.codes[-1][1].extend([0x4C, self._low_byte(address[1]), self._high_byte(address[1])])
+            self.codes[-1][1].extend([0x4C, address[1].low_byte().value, address[1].high_byte().value])
         elif address[0] == ADDRESSING.INDIRECT:
-            self.codes[-1][1].extend([0x6C, self._low_byte(address[1]), self._high_byte(address[1])])
+            self.codes[-1][1].extend([0x6C, address[1].low_byte().value, address[1].high_byte().value])
 
     @_addressing_guard(allowed={ADDRESSING.IMMEDIATE, ADDRESSING.ADDRESS, ADDRESSING.INDEXED,
                                 ADDRESSING.INDEXED_INDIRECT, ADDRESSING.INDIRECT_INDEXED})
@@ -188,20 +180,43 @@ class Assembler(object):
     @_assemble_guard
     def gen_LDA(self, index, address):
         if address[0] == ADDRESSING.IMMEDIATE:
-            self.codes[-1][1].extend([0xA9, address[1]])
+            self.codes[-1][1].extend([0xA9, address[1].value])
         elif address[0] == ADDRESSING.ADDRESS:
             if self.fit_zero_pages[index]:
-                self.codes[-1][1].extend([0xA5, address[1]])
+                self.codes[-1][1].extend([0xA5, address[1].value])
             else:
-                self.codes[-1][1].extend([0xAD, self._low_byte(address[1]), self._high_byte(address[1])])
+                self.codes[-1][1].extend([0xAD, address[1].low_byte().value, address[1].high_byte().value])
         elif address[0] == ADDRESSING.INDEXED:
             if self.fit_zero_pages[index] and address[-1] == 'X':
-                self.codes[-1][1].extend([0xB5, address[1]])
+                self.codes[-1][1].extend([0xB5, address[1].value])
             elif address[-1] == 'X':
-                self.codes[-1][1].extend([0xBD, self._low_byte(address[1]), self._high_byte(address[1])])
+                self.codes[-1][1].extend([0xBD, address[1].low_byte().value, address[1].high_byte().value])
             else:
-                self.codes[-1][1].extend([0xB9, self._low_byte(address[1]), self._high_byte(address[1])])
+                self.codes[-1][1].extend([0xB9, address[1].low_byte().value, address[1].high_byte().value])
         elif address[0] == ADDRESSING.INDEXED_INDIRECT:
-            self.codes[-1][1].extend([0xA1, address[1]])
+            self.codes[-1][1].extend([0xA1, address[1].value])
         elif address[0] == ADDRESSING.INDIRECT_INDEXED:
-            self.codes[-1][1].extend([0xB1, address[1]])
+            self.codes[-1][1].extend([0xB1, address[1].value])
+
+    @_addressing_guard(allowed={ADDRESSING.IMMEDIATE, ADDRESSING.ADDRESS, ADDRESSING.INDEXED})
+    def pre_LDX(self, address):
+        if address[0] in {ADDRESSING.ADDRESS, ADDRESSING.INDEXED}:
+            return 2 if self.fit_zero_pages[-1] else 3
+        return 2
+
+    @_assemble_guard
+    def gen_LDX(self, index, address):
+        if address[0] == ADDRESSING.IMMEDIATE:
+            self.codes[-1][1].extend([0xA2, address[1].value])
+        elif address[0] == ADDRESSING.ADDRESS:
+            if self.fit_zero_pages[index]:
+                self.codes[-1][1].extend([0xA6, address[1].value])
+            else:
+                self.codes[-1][1].extend([0xB6, address[1].low_byte().value, address[1].high_byte().value])
+        elif address[0] == ADDRESSING.INDEXED:
+            if self.fit_zero_pages[index] and address[-1] == 'X':
+                self.codes[-1][1].extend([0xB5, address[1].value])
+            elif address[-1] == 'X':
+                self.codes[-1][1].extend([0xAE, address[1].low_byte().value, address[1].high_byte().value])
+            else:
+                self.codes[-1][1].extend([0xBE, address[1].low_byte().value, address[1].high_byte().value])

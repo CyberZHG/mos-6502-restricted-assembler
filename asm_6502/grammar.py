@@ -1,15 +1,16 @@
+from collections import namedtuple
+
 import ply.lex as lex
 import ply.yacc as yacc
 
 __all__ = ['get_parser', 'ParseError',
-           'INTEGER', 'INSTANT', 'ADDRESS', 'CURRENT', 'ARITHMETIC', 'LABEL', 'KEYWORD', 'INSTRUCTION',
+           'Integer', 'INSTANT', 'ADDRESS', 'CURRENT', 'ARITHMETIC', 'LABEL', 'KEYWORD', 'INSTRUCTION',
            'REGISTER', 'ADDRESSING', 'KEYWORDS']
 
 
 _PARSER = None
 _LEXER = None
 
-INTEGER = 'integer'
 INSTANT = 'instant'
 ADDRESS = 'address'
 CURRENT = 'current'
@@ -18,6 +19,56 @@ LABEL = 'label'
 KEYWORD = 'keyword'
 INSTRUCTION = 'instruction'
 REGISTER = 'register'
+
+
+class Integer(namedtuple('Integer', ['is_word', 'value'])):
+
+    __slots__ = ()
+
+    def __add__(self, other):
+        if not isinstance(other, Integer):
+            other = Integer.const(other)
+        value = self.value + other.value
+        return Integer(
+            is_word=self.is_word or other.is_word or value > 0xFF,
+            value=value,
+        )
+
+    def __sub__(self, other):
+        return Integer(
+            is_word=self.is_word or other.is_word,
+            value=self.value - other.value,
+        )
+
+    def __mul__(self, other):
+        value = self.value * other.value
+        return Integer(
+            is_word=self.is_word or other.is_word or value > 0xFF,
+            value=value,
+        )
+
+    def __floordiv__(self, other):
+        return Integer(
+            is_word=self.is_word or other.is_word,
+            value=self.value // other.value,
+        )
+
+    def __neg__(self):
+        return Integer(is_word=self.is_word, value=-self.value)
+
+    def low_byte(self):
+        return Integer(is_word=False, value=self.value & 0xFF)
+
+    def high_byte(self):
+        return Integer(is_word=False, value=(self.value >> 8) & 0xFF)
+
+    @classmethod
+    def zero(cls):
+        return cls(is_word=False, value=0)
+
+    @classmethod
+    def const(cls, value):
+        return cls(is_word=value <= 0xFF, value=value)
 
 
 class ADDRESSING(object):
@@ -108,25 +159,35 @@ t_BIT = r'\#LO|\#HI'
 
 def t_HEX(t):
     r"""\$[0-9a-fA-F]+"""
-    t.value = int(t.value[1:], 16)
+    t.value = Integer(
+        is_word=len(t.value) > 2 + 1,
+        value=int(t.value[1:], 16),
+    )
     return t
 
 
 def t_BIN(t):
     r"""%[01]+"""
-    t.value = int(t.value[1:], 2)
+    t.value = Integer(
+        is_word=len(t.value) > 8 + 1,
+        value=int(t.value[1:], 2),
+    )
     return t
 
 
 def t_DEC(t):
     r"""[0-9]+"""
-    t.value = int(t.value, 10)
+    value = int(t.value, 10)
+    t.value = Integer(
+        is_word=value > 0xFF,
+        value=value,
+    )
     return t
 
 
 def t_CHAR(t):
     r"""\'[^\'\n\r]\'"""
-    t.value = ord(t.value[1])
+    t.value = Integer(is_word=False, value=ord(t.value[1]))
     return t
 
 
@@ -239,13 +300,13 @@ def p_stat_val_indirect_indexed(p):
 def p_stat_val(p):
     """stat_val : BIT arithmetic"""
     if p[1] == '#LO':
-        if p[2][0] == INTEGER:
-            p[0] = (ADDRESSING.IMMEDIATE, (INSTANT, (INTEGER, p[2][1] & 0xFF)))
+        if isinstance(p[2], Integer):
+            p[0] = (ADDRESSING.IMMEDIATE, (INSTANT, p[2].low_byte()))
         else:
             p[0] = (ADDRESSING.IMMEDIATE, (INSTANT, (ARITHMETIC, 'lo', p[2])))
     else:
-        if p[2][0] == INTEGER:
-            p[0] = (ADDRESSING.IMMEDIATE, (INSTANT, (INTEGER, (p[2][1] >> 8) & 0xFF)))
+        if isinstance(p[2], Integer):
+            p[0] = (ADDRESSING.IMMEDIATE, (INSTANT, p[2].high_byte()))
         else:
             p[0] = (ADDRESSING.IMMEDIATE, (INSTANT, (ARITHMETIC, 'hi', p[2])))
     return p
@@ -263,10 +324,10 @@ def p_numeric(p):
 
 def p_arithmetic_uminus(p):
     """arithmetic : '-' arithmetic %prec UMINUS"""
-    if p[2][0] == INTEGER:
-        p[0] = (p[2][0], -p[2][1])
+    if isinstance(p[2], Integer):
+        p[0] = -p[2]
     else:
-        p[0] = (ARITHMETIC, '-', (INTEGER, 0), p[2])
+        p[0] = (ARITHMETIC, '-', Integer.zero(), p[2])
     return p
 
 
@@ -300,15 +361,15 @@ def p_arithmetic_binary_op(p):
                   | arithmetic CUR arithmetic
                   | arithmetic '/' arithmetic
     """
-    if p[1][0] == INTEGER and p[3][0] == INTEGER:
+    if isinstance(p[1], Integer) and isinstance(p[3], Integer):
         if p[2] == '+':
-            p[0] = (p[1][0], p[1][1] + p[3][1])
+            p[0] = p[1] + p[3]
         elif p[2] == '-':
-            p[0] = (p[1][0], p[1][1] - p[3][1])
+            p[0] = p[1] - p[3]
         elif p[2] == '/':
-            p[0] = (p[1][0], p[1][1] // p[3][1])
+            p[0] = p[1] // p[3]
         else:
-            p[0] = (p[1][0], p[1][1] * p[3][1])
+            p[0] = p[1] * p[3]
     else:
         p[0] = (ARITHMETIC, p[2], p[1], p[3])
     return p
@@ -320,7 +381,7 @@ def p_integer(p):
               | BIN
               | CHAR
     """
-    p[0] = (INTEGER, p[1])
+    p[0] = p[1]
     return p
 
 
