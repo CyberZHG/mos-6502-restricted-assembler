@@ -71,3 +71,20 @@ class TestParseArithmetic(TestCase):
         code = 'CMP #2*[3+4*5]'
         results = self.parser.parse(code)[0][2][1]
         self.assertEqual((INSTANT, (INTEGER, 46)), results)
+
+    def test_low_and_high(self):
+        code = 'LDA #LO $00AB+$CD00'
+        results = self.parser.parse(code)[0][2][1]
+        self.assertEqual((INSTANT, (INTEGER, 0xAB)), results)
+
+        code = 'LDA #HI $00AB+$CD00'
+        results = self.parser.parse(code)[0][2][1]
+        self.assertEqual((INSTANT, (INTEGER, 0xCD)), results)
+
+        code = 'LDA #LO *+1'
+        results = self.parser.parse(code)[0][2][1]
+        self.assertEqual((INSTANT, (ARITHMETIC, 'lo', (ARITHMETIC, '+', (CURRENT,), (INTEGER, 1)))), results)
+
+        code = 'LDA #HI *+1'
+        results = self.parser.parse(code)[0][2][1]
+        self.assertEqual((INSTANT, (ARITHMETIC, 'hi', (ARITHMETIC, '+', (CURRENT,), (INTEGER, 1)))), results)

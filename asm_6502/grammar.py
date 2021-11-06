@@ -237,8 +237,17 @@ def p_stat_val_indirect_indexed(p):
 
 
 def p_stat_val(p):
-    """stat_val : BIT LABEL"""
-    p[0] = None
+    """stat_val : BIT arithmetic"""
+    if p[1] == '#LO':
+        if p[2][0] == INTEGER:
+            p[0] = (ADDRESSING.IMMEDIATE, (INSTANT, (INTEGER, p[2][1] & 0xFF)))
+        else:
+            p[0] = (ADDRESSING.IMMEDIATE, (INSTANT, (ARITHMETIC, 'lo', p[2])))
+    else:
+        if p[2][0] == INTEGER:
+            p[0] = (ADDRESSING.IMMEDIATE, (INSTANT, (INTEGER, (p[2][1] >> 8) & 0xFF)))
+        else:
+            p[0] = (ADDRESSING.IMMEDIATE, (INSTANT, (ARITHMETIC, 'hi', p[2])))
     return p
 
 
