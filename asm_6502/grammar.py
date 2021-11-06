@@ -156,13 +156,13 @@ precedence = (
 
 def p_stat_with_label(p):
     """stat : LABEL KEYWORD stat_val"""
-    p[0] = [(INSTRUCTION, (LABEL, p[1]), (KEYWORD, p[2]), p[3])]
+    p[0] = [(INSTRUCTION, (LABEL, p[1]), (KEYWORD, p[2]), p[3], p.lineno(1))]
     return p
 
 
 def p_stat_without_label(p):
     """stat : KEYWORD stat_val"""
-    p[0] = [(INSTRUCTION, (KEYWORD, p[1]), p[2])]
+    p[0] = [(INSTRUCTION, (KEYWORD, p[1]), p[2], p.lineno(1))]
     return p
 
 

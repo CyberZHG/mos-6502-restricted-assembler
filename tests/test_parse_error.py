@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from asm_6502.grammar import get_parser, ParseError
+from asm_6502 import get_parser, ParseError
 
 
 class TestParseError(TestCase):

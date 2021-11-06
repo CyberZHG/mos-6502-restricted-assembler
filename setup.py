@@ -32,7 +32,7 @@ setup(
     license='MIT',
     author='CyberZHG',
     author_email='CyberZHG@users.noreply.github.com',
-    description='6502 assembler with restricted functions',
+    description='A 6502 assembler with restricted functions',
     long_description=read_file('README.md'),
     long_description_content_type='text/markdown',
     install_requires=get_requirements('requirements.txt'),

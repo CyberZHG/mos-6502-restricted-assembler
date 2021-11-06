@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from asm_6502.grammar import get_parser, ADDRESSING, INSTANT, ADDRESS, INTEGER, REGISTER
+from asm_6502 import get_parser, ADDRESSING, INSTANT, ADDRESS, INTEGER, REGISTER
 
 
 class TestParseAddressing(TestCase):
