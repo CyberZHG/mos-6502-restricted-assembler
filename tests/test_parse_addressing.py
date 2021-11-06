@@ -50,3 +50,8 @@ class TestParseAddressing(TestCase):
         code = 'LDA ($20,X)'
         results = self.parser.parse(code)[0][2]
         self.assertEqual((ADDRESSING.INDEXED_INDIRECT, (ADDRESS, (INTEGER, 32)), (REGISTER, 'X')), results)
+
+    def test_addressing_indirect_indexed(self):
+        code = 'LDA ($86),Y'
+        results = self.parser.parse(code)[0][2]
+        self.assertEqual((ADDRESSING.INDEXED_INDIRECT, (ADDRESS, (INTEGER, 134)), (REGISTER, 'Y')), results)

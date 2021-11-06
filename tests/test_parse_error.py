@@ -51,3 +51,11 @@ class TestParseError(TestCase):
         self.assertEqual("ParseError: Only register X can be used for indexed indirect addressing, "
                          "found Y at 1, column 10",
                          str(e.exception))
+
+    def test_wrong_register_in_indirect_indexed_addressing(self):
+        code = 'LDA ($86),X'
+        with self.assertRaises(ParseError) as e:
+            self.parser.parse(code)
+        self.assertEqual("ParseError: Only register Y can be used for indexed indirect addressing, "
+                         "found X at 1, column 11",
+                         str(e.exception))

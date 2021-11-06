@@ -44,7 +44,7 @@ class TestParseArithmetic(TestCase):
 
         code = 'CMP ***'
         results = self.parser.parse(code)[0][2][1]
-        self.assertEqual((ADDRESS, (ARITHMETIC, (CURRENT,), '*', (CURRENT,))), results)
+        self.assertEqual((ADDRESS, (ARITHMETIC, '*', (CURRENT,), (CURRENT,))), results)
 
     def test_div(self):
         code = 'CMP #24/3'
@@ -53,7 +53,7 @@ class TestParseArithmetic(TestCase):
 
         code = 'CMP */*'
         results = self.parser.parse(code)[0][2][1]
-        self.assertEqual((ADDRESS, (ARITHMETIC, (CURRENT,), '/', (CURRENT,))), results)
+        self.assertEqual((ADDRESS, (ARITHMETIC, '/', (CURRENT,), (CURRENT,))), results)
 
     def test_neg(self):
         code = 'CMP #-42'
@@ -62,7 +62,9 @@ class TestParseArithmetic(TestCase):
 
         code = 'CMP -**-*'
         results = self.parser.parse(code)[0][2][1]
-        self.assertEqual((ADDRESS, (ARITHMETIC, ((INTEGER, 0), '-', (CURRENT,)), '*', ((INTEGER, 0), '-', (CURRENT,)))),
+        self.assertEqual((ADDRESS, (ARITHMETIC, '*',
+                                    (ARITHMETIC, '-', (INTEGER, 0), (CURRENT,)),
+                                    (ARITHMETIC, '-', (INTEGER, 0), (CURRENT,)))),
                          results)
 
     def test_parenthesis(self):
