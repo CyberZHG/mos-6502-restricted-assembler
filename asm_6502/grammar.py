@@ -27,9 +27,7 @@ class ADDRESSING(object):
     ACCUMULATOR = 'addressing_accumulator'
     IMMEDIATE = 'addressing_immediate'
     IMPLIED = 'addressing_implied'
-    RELATIVE = 'addressing_relative'
-    ABSOLUTE = 'addressing_absolute'
-    ZERO_PAGE = 'addressing_zero_page'
+    ADDRESS = 'addressing_address'
     INDIRECT = 'addressing_indirect'
     ABSOLUTE_INDEXED = 'addressing_absolute_indexed'
     ZERO_PAGE_INDEXED = 'addressing_zero_page_indexed'
@@ -195,8 +193,23 @@ def p_stat_val_direct(p):
         p[0] = (ADDRESSING.ACCUMULATOR,)
     elif isinstance(p[1], tuple) and p[1][0] == INSTANT:
         p[0] = (ADDRESSING.IMMEDIATE, p[1])
+    elif isinstance(p[1], tuple) and p[1][0] == ADDRESS:
+        p[0] = (ADDRESSING.ADDRESS, p[1])
     else:
         p[0] = (PARAMETER, p[1])
+    return p
+
+
+def p_stat_val_empty(p):
+    """stat_val :"""
+    p[0] = (ADDRESSING.IMPLIED,)
+    return p
+
+
+def p_stat_val_indirect(p):
+    """stat_val : '(' arithmetic ')'
+                | '(' LABEL ')' """
+    p[0] = (ADDRESSING.INDIRECT, (ADDRESS, p[2]))
     return p
 
 
@@ -204,13 +217,10 @@ def p_stat_val(p):
     """stat_val : BIT LABEL
                 | numeric ',' LABEL
                 | LABEL ',' LABEL
-                | '(' numeric ')'
-                | '(' LABEL ')'
                 | '(' numeric ',' LABEL ')'
                 | '(' LABEL ',' LABEL ')'
                 | '(' numeric ')' ',' LABEL
                 | '(' LABEL ')' ',' LABEL
-                |
     """
     p[0] = (PARAMETER, None)
     return p
