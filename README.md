@@ -105,3 +105,13 @@ LDX $10,Y           ; Load into X from zero-page address ($10 + Y) % $0100
 LDX $ABCD           ; Load into X from address $ABCD
 LDX $ABCD,Y         ; Load into X from address $ABCD + Y
 ```
+
+### LDY
+
+```
+LDY #10             ; Load $0A into the Y
+LDY $00             ; Load into Y from zero-page address $00
+LDY $10,X           ; Load into Y from zero-page address ($10 + X) % $0100
+LDY $ABCD           ; Load into Y from address $ABCD
+LDY $ABCD,X         ; Load into Y from address $ABCD + X
+```

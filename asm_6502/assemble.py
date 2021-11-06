@@ -226,3 +226,26 @@ class Assembler(object):
                 self._extend_byte_address(0xB6, address)
             else:
                 self._extend_word_address(0xBE, address)
+
+    @_addressing_guard(allowed={ADDRESSING.IMMEDIATE, ADDRESSING.ADDRESS, ADDRESSING.INDEXED})
+    def pre_LDY(self, address):
+        if address[0] in {ADDRESSING.ADDRESS, ADDRESSING.INDEXED}:
+            return 2 if self.fit_zero_pages[-1] else 3
+        return 2
+
+    @_assemble_guard
+    def gen_LDY(self, index, address):
+        if address[0] == ADDRESSING.IMMEDIATE:
+            self._extend_byte_address(0xA0, address)
+        elif address[0] == ADDRESSING.ADDRESS:
+            if self.fit_zero_pages[index]:
+                self._extend_byte_address(0xA4, address)
+            else:
+                self._extend_word_address(0xAC, address)
+        elif address[0] == ADDRESSING.INDEXED:
+            if address[-1] == 'Y':
+                raise AssembleError(f"Can not use Y as the index register in LDX at line {self.line_number}")
+            if self.fit_zero_pages[index]:
+                self._extend_byte_address(0xB4, address)
+            else:
+                self._extend_word_address(0xBC, address)
