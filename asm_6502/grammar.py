@@ -1,11 +1,12 @@
 import ply.lex as lex
 import ply.yacc as yacc
 
-__all__ = ['get_parser',
+__all__ = ['get_parser', 'ParseError',
            'INSTANT', 'ADDRESS', 'CURRENT', 'ARITHMETIC', 'PSEUDO', 'LABEL', 'KEYWORD', 'INSTRUCTION', 'PARAMETER']
 
 
 _PARSER = None
+_LEXER = None
 
 INSTANT = 'instant'
 ADDRESS = 'address'
@@ -23,6 +24,20 @@ KEYWORDS = {
     'JSR', 'LDA', 'LDX', 'LDY', 'LSR', 'NOP', 'ORA', 'PHA', 'PHP', 'PLA', 'PLP', 'ROL', 'ROR', 'RTI',
     'RTS', 'SBC', 'SEC', 'SED', 'SEI', 'STA', 'STX', 'STY', 'TAX', 'TAY', 'TSX', 'TXA', 'TXS', 'TYA',
 }
+
+
+class ParseError(Exception):
+
+    def __init__(self, info, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.info = info
+
+    def __str__(self):
+        return f'ParseError: {self.info}'
+
+    def __repr__(self):
+        return f'ParseError("{self.info}")'
+
 
 # Tokens
 tokens = (
@@ -90,9 +105,12 @@ def t_NEWLINE(t):
 
 
 def t_error(t):
-    print("Illegal character '%s'" % t.value[0])
-    t.lexer.skip(1)
-    raise RuntimeError()
+    column = 1
+    while t.lexpos - column >= 0:
+        if t.lexer.lexdata[t.lexpos - column] in {'\n', '\r'}:
+            break
+        column += 1
+    raise ParseError(f"Illegal character '{t.value[0]}' found at line {t.lineno}, column {column}")
 
 
 # Syntax
@@ -221,15 +239,20 @@ def p_arithmetic_binary_op(p):
 
 def p_error(p):
     if p:
-        print("Syntax error at '%s'" % p.value)
-        raise RuntimeError()
+        column = 1
+        while p.lexpos - column >= 0:
+            if p.lexer.lexdata[p.lexpos - column] in {'\n', '\r'}:
+                break
+            column += 1
+        raise ParseError(f"Syntax error at line {p.lineno}, column {column}: {repr(p.value)}")
     else:
-        print("Syntax error at EOF")
+        raise ParseError(f"Syntax error at EOF")
 
 
 def get_parser(debug=False):
-    global _PARSER
+    global _PARSER, _LEXER
     if _PARSER is None:
-        lex.lex(debug=debug)
+        _LEXER = lex.lex(debug=debug)
         _PARSER = yacc.yacc(debug=debug)
+    _LEXER.lineno = 1
     return _PARSER
