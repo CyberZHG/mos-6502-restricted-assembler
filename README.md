@@ -1,1 +1,1 @@
-# swift-6502-assembler
+# 6502 Restricted Assembler
