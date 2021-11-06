@@ -3,7 +3,7 @@ import ply.yacc as yacc
 
 __all__ = ['get_parser', 'ParseError',
            'INTEGER', 'INSTANT', 'ADDRESS', 'CURRENT', 'ARITHMETIC', 'LABEL', 'KEYWORD', 'INSTRUCTION',
-           'REGISTER', 'ADDRESSING']
+           'REGISTER', 'ADDRESSING', 'KEYWORDS']
 
 
 _PARSER = None
@@ -232,7 +232,7 @@ def p_stat_val_indirect_indexed(p):
     if p[5][0] != 'Y':
         raise ParseError(f"Only register Y can be used for indexed indirect addressing, found {p[5][0]} at "
                          f"{p.lineno(5)}, column {get_column(p, index=5)}")
-    p[0] = (ADDRESSING.INDEXED_INDIRECT, (ADDRESS, p[2]), (REGISTER, p[5]))
+    p[0] = (ADDRESSING.INDIRECT_INDEXED, (ADDRESS, p[2]), (REGISTER, p[5]))
     return p
 
 

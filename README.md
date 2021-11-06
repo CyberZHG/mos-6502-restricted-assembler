@@ -71,3 +71,18 @@ START ORG $0080
                      ; which is $00A0 in this case
       JMP ($0080)
 ```
+
+### LDA
+
+```
+LDA #10             ; Load $0A into the accumulator
+LDA #LO $ABCD       ; Load $CD into the accumulator
+LDA #HI $ABCD       ; Load $AB into the accumulator
+LDA $00             ; Load accumulator from zero-page address $00
+LDA $10,X           ; Load accumulator from zero-page address ($10 + X) % $0100
+LDA $ABCD           ; Load accumulator from address $ABCD
+LDA $ABCD,X         ; Load accumulator from address $ABCD + X
+LDA $ABCD,Y         ; Load accumulator from address $ABCD + Y
+LDA ($40,X)         ; Load accumulator from the 2-byte address contained in ($40 + X) % $0100
+LDA ($40),Y         ; Load accumulator from (the 2-byte address contained in $40) + Y
+```
