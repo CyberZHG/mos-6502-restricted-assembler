@@ -2,7 +2,7 @@ import ply.lex as lex
 import ply.yacc as yacc
 
 __all__ = ['get_parser',
-           'INSTANT', 'ADDRESS', 'CURRENT', 'PSEUDO', 'LABEL', 'KEYWORD']
+           'INSTANT', 'ADDRESS', 'CURRENT', 'ARITHMETIC', 'PSEUDO', 'LABEL', 'KEYWORD', 'INSTRUCTION', 'PARAMETER']
 
 
 _PARSER = None
@@ -37,7 +37,7 @@ tokens = (
     'NEWLINE',
 )
 
-literals = ['+', '-', '*', '/', '#', '(', ')', ',', 'X', 'Y', '[', ']']
+literals = ['+', '-', '/', '#', '(', ')', ',', 'X', 'Y', '[', ']']
 
 
 def t_PSEUDO(t):
@@ -98,7 +98,7 @@ def t_error(t):
 # Syntax
 precedence = (
     ('left', '+', '-'),
-    ('left', '*', '/'),
+    ('left', 'CUR', '/'),
     ('right', 'UMINUS'),
 )
 
@@ -173,7 +173,10 @@ def p_address(p):
 
 def p_arithmetic_uminus(p):
     """arithmetic : '-' arithmetic %prec UMINUS"""
-    p[0] = (p[2][0], -p[2][1])
+    if p[2][0] in {INSTANT, ADDRESS}:
+        p[0] = (p[2][0], -p[2][1])
+    else:
+        p[0] = ((INSTANT, 0), '-', p[2])
     return p
 
 
@@ -199,7 +202,7 @@ def p_arithmetic_paren(p):
 def p_arithmetic_binary_op(p):
     """arithmetic : arithmetic '+' arithmetic
                   | arithmetic '-' arithmetic
-                  | arithmetic '*' arithmetic
+                  | arithmetic CUR arithmetic
                   | arithmetic '/' arithmetic
     """
     if p[1][0] in {INSTANT, ADDRESS} and p[3][0] in {INSTANT, ADDRESS}:
@@ -207,10 +210,10 @@ def p_arithmetic_binary_op(p):
             p[0] = (p[1][0], p[1][1] + p[3][1])
         elif p[2] == '-':
             p[0] = (p[1][0], p[1][1] - p[3][1])
-        elif p[2] == '*':
-            p[0] = (p[1][0], p[1][1] * p[3][1])
-        else:
+        elif p[2] == '/':
             p[0] = (p[1][0], p[1][1] // p[3][1])
+        else:
+            p[0] = (p[1][0], p[1][1] * p[3][1])
     else:
         p[0] = (ARITHMETIC, p[1], p[2], p[3])
     return p
@@ -224,9 +227,9 @@ def p_error(p):
         print("Syntax error at EOF")
 
 
-def get_parser():
+def get_parser(debug=False):
     global _PARSER
     if _PARSER is None:
-        lex.lex()
-        _PARSER = yacc.yacc()
+        lex.lex(debug=debug)
+        _PARSER = yacc.yacc(debug=debug)
     return _PARSER

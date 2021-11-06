@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from asm_6502.grammar import get_parser, ADDRESS, INSTANT, CURRENT
+from asm_6502.grammar import get_parser, ADDRESS, INSTANT, CURRENT, ARITHMETIC
 
 
 class TestParseArithmetic(TestCase):
@@ -32,3 +32,39 @@ class TestParseArithmetic(TestCase):
         code = "ORA #%00100000"
         results = self.parser.parse(code)[0][2][1]
         self.assertEqual(results, (INSTANT, 32))
+
+    def test_mul(self):
+        code = 'CMP #2*3'
+        results = self.parser.parse(code)[0][2][1]
+        self.assertEqual(results, (INSTANT, 6))
+
+        code = 'CMP #2*3+4*5'
+        results = self.parser.parse(code)[0][2][1]
+        self.assertEqual(results, (INSTANT, 26))
+
+        code = 'CMP ***'
+        results = self.parser.parse(code)[0][2][1]
+        self.assertEqual(results, (ARITHMETIC, (CURRENT,), '*', (CURRENT,)))
+
+    def test_div(self):
+        code = 'CMP #24/3'
+        results = self.parser.parse(code)[0][2][1]
+        self.assertEqual(results, (INSTANT, 8))
+
+        code = 'CMP */*'
+        results = self.parser.parse(code)[0][2][1]
+        self.assertEqual(results, (ARITHMETIC, (CURRENT,), '/', (CURRENT,)))
+
+    def test_neg(self):
+        code = 'CMP -#42'
+        results = self.parser.parse(code)[0][2][1]
+        self.assertEqual(results, (INSTANT, -42))
+
+        code = 'CMP -**-*'
+        results = self.parser.parse(code)[0][2][1]
+        self.assertEqual(results, (ARITHMETIC, ((INSTANT, 0), '-', (CURRENT,)), '*', ((INSTANT, 0), '-', (CURRENT,))))
+
+    def test_parenthesis(self):
+        code = 'CMP #2*[3+4*5]'
+        results = self.parser.parse(code)[0][2][1]
+        self.assertEqual(results, (INSTANT, 46))
