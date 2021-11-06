@@ -53,3 +53,60 @@ class TestParseAddressing(TestCase):
             self.assembler.assemble(code)
         self.assertEqual("AssembleError: The assembled code will exceed the max memory 0x10000 at line 2",
                          str(e.exception))
+
+    def test_jmp_with_entry(self):
+        code = "ORG $0080\n" \
+               "JMP $abcd"
+        results = self.assembler.assemble(code)
+        self.assertEqual([
+            (0x0080, [0x4C, 0xcd, 0xab]),
+            (0xFFFC, [0x4C, 0x80, 0x00]),
+        ], results)
+
+        code = "START ORG $0080\n" \
+               "NEXT  JMP $abcd"
+        results = self.assembler.assemble(code)
+        self.assertEqual([
+            (0x0080, [0x4C, 0xcd, 0xab]),
+            (0xFFFC, [0x4C, 0x80, 0x00]),
+        ], results)
+
+    def test_jmp_dead_loop(self):
+        code = "ORG $0080\n" \
+               "JMP *"
+        results = self.assembler.assemble(code, add_entry=False)
+        self.assertEqual([
+            (0x0080, [0x4C, 0x80, 0x00]),
+        ], results)
+
+    def test_jmp_add(self):
+        code = "ORG $0080\n" \
+               "JMP *+3"
+        results = self.assembler.assemble(code, add_entry=False)
+        self.assertEqual([
+            (0x0080, [0x4C, 0x83, 0x00]),
+        ], results)
+
+    def test_jmp_sub(self):
+        code = "ORG $0080\n" \
+               "JMP *-3"
+        results = self.assembler.assemble(code, add_entry=False)
+        self.assertEqual([
+            (0x0080, [0x4C, 0x7D, 0x00]),
+        ], results)
+
+    def test_jmp_mul(self):
+        code = "ORG $0080\n" \
+               "JMP ***"
+        results = self.assembler.assemble(code, add_entry=False)
+        self.assertEqual([
+            (0x0080, [0x4C, 0x00, 0x40]),
+        ], results)
+
+    def test_jmp_div(self):
+        code = "START ORG $0080\n" \
+               "      JMP */START"
+        results = self.assembler.assemble(code, add_entry=False)
+        self.assertEqual([
+            (0x0080, [0x4C, 0x01, 0x00]),
+        ], results)

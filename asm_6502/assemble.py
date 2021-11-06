@@ -1,7 +1,8 @@
 from typing import Union, List, Iterable
 from functools import wraps
 
-from .grammar import get_parser, LABEL, ADDRESSING, INTEGER
+from .grammar import (get_parser, KEYWORDS, LABEL,
+                      ADDRESSING, ADDRESS, INTEGER, ARITHMETIC, CURRENT)
 
 
 __all__ = ['Assembler', 'AssembleError']
@@ -26,12 +27,12 @@ class Assembler(object):
         self.max_memory = max_memory
         self.program_entry = program_entry
 
-        self.code_start = -1
-        self.code_offset = 0
-        self.line_number = -1
-        self.code_offsets = []
-        self.label_offsets = {}
-        self.codes = []
+        self.code_start = -1  # The offset of the first instruction that can be executed
+        self.code_offset = 0  # Current offset
+        self.line_number = -1  # Current line number
+        self.code_offsets = []  # The offsets of all the instructions
+        self.label_offsets = {}  # The resolved labels
+        self.codes = []  # The generated codes
 
     def reset(self):
         self.code_start = -1
@@ -41,7 +42,9 @@ class Assembler(object):
         self.label_offsets = {}
         self.codes = []
 
-    def assemble(self, instructions: Union[str, List], add_entry=True):
+    def assemble(self,
+                 instructions: Union[str, List],
+                 add_entry=True):
         if isinstance(instructions, str):
             parser = get_parser()
             instructions = parser.parse(instructions)
@@ -52,8 +55,12 @@ class Assembler(object):
             if inst[1][0] == LABEL:
                 offset = getattr(self, f'pre_{inst[2][1]}')(inst[3])
                 self.label_offsets[inst[1][1]] = self.code_offset
+                if self.code_start == -1 and inst[2][1] in KEYWORDS:
+                    self.code_start = self.code_offset
             else:
                 offset = getattr(self, f'pre_{inst[1][1]}')(inst[2])
+                if self.code_start == -1 and inst[1][1] in KEYWORDS:
+                    self.code_start = self.code_offset
             self.code_offsets.append(self.code_offset)
             self.code_offset += offset
             if self.code_offset >= self.max_memory:
@@ -70,6 +77,9 @@ class Assembler(object):
                 getattr(self, f'gen_{inst[1][1]}')(inst[2])
         while len(self.codes) and len(self.codes[-1][1]) == 0:
             del self.codes[-1]
+        if add_entry:
+            self.code_offset = 0xFFFC
+            self.gen_JMP((ADDRESSING.ADDRESS, (ADDRESS, (INTEGER, self.code_start))))
         return self.codes
 
     def _addressing_guard(allowed: Iterable[str]):
@@ -96,11 +106,26 @@ class Assembler(object):
     def _resolve_address_recur(self, address):
         if address[0] == INTEGER:
             return address[1]
+        if address[0] == CURRENT:
+            return self.code_offset
         if address[0] == LABEL:
             if address[1] not in self.label_offsets:
                 raise AssembleError(f"Can not resolve label '{address[1]}' at line {self.line_number}")
             return self.label_offsets[address[1]]
-        raise NotImplementedError()
+        if address[0] == ARITHMETIC:
+            op = address[1]
+            if op == '+':
+                return self._resolve_address_recur(address[2]) + self._resolve_address_recur(address[3])
+            if op == '-':
+                return self._resolve_address_recur(address[2]) - self._resolve_address_recur(address[3])
+            if op == '*':
+                return self._resolve_address_recur(address[2]) * self._resolve_address_recur(address[3])
+            if op == '/':
+                return self._resolve_address_recur(address[2]) // self._resolve_address_recur(address[3])
+            if op == 'lo':
+                return self._low_byte(self._resolve_address_recur(address[2]))
+            if op == 'hi':
+                return self._high_byte(self._resolve_address_recur(address[2]))
 
     def _resolve_address(self, address):
         if address[0] in {ADDRESSING.ADDRESS, ADDRESSING.INDIRECT}:
