@@ -29,20 +29,10 @@ class TestParseError(TestCase):
         code = 'LDA XXX,YYY,ZZZ'
         with self.assertRaises(ParseError) as e:
             self.parser.parse(code)
-        self.assertEqual("ParseError: Syntax error at line 1, column 12: ','", str(e.exception))
+        self.assertEqual("ParseError: Syntax error at line 1, column 9: 'YYY'", str(e.exception))
 
-    def test_invalid_keyword(self):
-        code = 'LDK #$00'
+    def test_wrong_accumulator(self):
+        code = 'LSR X'
         with self.assertRaises(ParseError) as e:
             self.parser.parse(code)
-        self.assertEqual("ParseError: Unknown keyword at line 1, column 1: 'LDK'", str(e.exception))
-
-        code = '  LDK #$00'
-        with self.assertRaises(ParseError) as e:
-            self.parser.parse(code)
-        self.assertEqual("ParseError: Unknown keyword at line 1, column 3: 'LDK'", str(e.exception))
-
-        code = 'LDK LDK #$00'
-        with self.assertRaises(ParseError) as e:
-            self.parser.parse(code)
-        self.assertEqual("ParseError: Unknown keyword at line 1, column 5: 'LDK'", str(e.exception))
+        self.assertEqual("ParseError: Register X can not be used as an address at 1, column 5", str(e.exception))

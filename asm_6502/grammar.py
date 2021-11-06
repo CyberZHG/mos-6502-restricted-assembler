@@ -2,8 +2,8 @@ import ply.lex as lex
 import ply.yacc as yacc
 
 __all__ = ['get_parser', 'ParseError',
-           'INTEGER', 'INSTANT', 'ADDRESS', 'CURRENT', 'ARITHMETIC', 'PSEUDO', 'LABEL', 'KEYWORD', 'INSTRUCTION',
-           'PARAMETER', 'REGISTER', 'ADDRESSING']
+           'INTEGER', 'INSTANT', 'ADDRESS', 'CURRENT', 'ARITHMETIC', 'LABEL', 'KEYWORD', 'INSTRUCTION',
+           'REGISTER', 'ADDRESSING']
 
 
 _PARSER = None
@@ -14,11 +14,9 @@ INSTANT = 'instant'
 ADDRESS = 'address'
 CURRENT = 'current'
 ARITHMETIC = 'arithmetic'
-PSEUDO = 'pseudo'
 LABEL = 'label'
 KEYWORD = 'keyword'
 INSTRUCTION = 'instruction'
-PARAMETER = 'parameter'
 REGISTER = 'register'
 
 
@@ -76,6 +74,8 @@ def get_column(p, index=None):
 # Tokens
 tokens = (
     'PSEUDO',
+    'REGISTER',
+    'KEYWORD',
     'LABEL',
     'BIT',
     'HEX',
@@ -86,16 +86,21 @@ tokens = (
     'NEWLINE',
 )
 
-literals = ['+', '-', '/', '#', '(', ')', ',', 'X', 'Y', '[', ']']
+literals = ['+', '-', '/', '#', '(', ')', ',', '[', ']']
 
 
 def t_PSEUDO(t):
     r"""\.[a-zA-Z_][a-zA-Z0-9_]*"""
+    t.type = 'KEYWORD'
     return t
 
 
 def t_LABEL(t):
     r"""[a-zA-Z_][a-zA-Z0-9_]*"""
+    if t.value in {'A', 'X', 'Y'}:
+        t.type = 'REGISTER'
+    elif t.value in KEYWORDS or t.value in PSEUDOS:
+        t.type = 'KEYWORD'
     return t
 
 
@@ -150,27 +155,15 @@ precedence = (
 )
 
 
-def _get_keyword(p, label, index=None):
-    if label in KEYWORDS:
-        op = (KEYWORD, label)
-    elif label in PSEUDOS:
-        op = (PSEUDOS, label)
-    else:
-        raise ParseError(f"Unknown keyword at line {p.lineno(index)}, column {get_column(p, index=index)}: '{label}'")
-    return op
-
-
 def p_stat_with_label(p):
-    """stat : LABEL LABEL stat_val
-            | LABEL PSEUDO stat_val"""
-    p[0] = [(INSTRUCTION, (LABEL, p[1]), _get_keyword(p, p[2], index=2), p[3])]
+    """stat : LABEL KEYWORD stat_val"""
+    p[0] = [(INSTRUCTION, (LABEL, p[1]), (KEYWORD, p[2]), p[3])]
     return p
 
 
 def p_stat_without_label(p):
-    """stat : LABEL stat_val
-            | PSEUDO stat_val"""
-    p[0] = [(INSTRUCTION, _get_keyword(p, p[1], index=1), p[2])]
+    """stat : KEYWORD stat_val"""
+    p[0] = [(INSTRUCTION, (KEYWORD, p[1]), p[2])]
     return p
 
 
@@ -186,17 +179,22 @@ def p_stat_empty(p):
     return p
 
 
-def p_stat_val_direct(p):
-    """stat_val : numeric
-                | LABEL"""
+def p_stat_val_accumulator(p):
+    """stat_val : REGISTER"""
     if p[1] == 'A':
         p[0] = (ADDRESSING.ACCUMULATOR,)
-    elif isinstance(p[1], tuple) and p[1][0] == INSTANT:
-        p[0] = (ADDRESSING.IMMEDIATE, p[1])
-    elif isinstance(p[1], tuple) and p[1][0] == ADDRESS:
-        p[0] = (ADDRESSING.ADDRESS, p[1])
     else:
-        p[0] = (PARAMETER, p[1])
+        raise ParseError(f"Register {p[1]} can not be used as an address at "
+                         f"{p.lineno(1)}, column {get_column(p, index=1)}")
+    return p
+
+
+def p_stat_val_direct(p):
+    """stat_val : numeric"""
+    if isinstance(p[1], tuple) and p[1][0] == INSTANT:
+        p[0] = (ADDRESSING.IMMEDIATE, p[1])
+    else:
+        p[0] = (ADDRESSING.ADDRESS, p[1])
     return p
 
 
@@ -207,22 +205,18 @@ def p_stat_val_empty(p):
 
 
 def p_stat_val_indirect(p):
-    """stat_val : '(' arithmetic ')'
-                | '(' LABEL ')' """
+    """stat_val : '(' arithmetic ')'"""
     p[0] = (ADDRESSING.INDIRECT, (ADDRESS, p[2]))
     return p
 
 
 def p_stat_val(p):
     """stat_val : BIT LABEL
-                | numeric ',' LABEL
-                | LABEL ',' LABEL
-                | '(' numeric ',' LABEL ')'
-                | '(' LABEL ',' LABEL ')'
-                | '(' numeric ')' ',' LABEL
-                | '(' LABEL ')' ',' LABEL
+                | numeric ',' REGISTER
+                | '(' arithmetic ',' REGISTER ')'
+                | '(' arithmetic ')' ',' REGISTER
     """
-    p[0] = (PARAMETER, None)
+    p[0] = None
     return p
 
 
@@ -248,6 +242,12 @@ def p_arithmetic_uminus(p):
 def p_arithmetic_direct(p):
     """arithmetic : integer"""
     p[0] = p[1]
+    return p
+
+
+def p_arithmetic_label(p):
+    """arithmetic : LABEL"""
+    p[0] = (LABEL, p[1])
     return p
 
 

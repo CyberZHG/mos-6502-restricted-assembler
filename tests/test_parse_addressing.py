@@ -36,4 +36,3 @@ class TestParseAddressing(TestCase):
         code = 'JMP  ($1000)'
         results = self.parser.parse(code)[0][2]
         self.assertEqual((ADDRESSING.INDIRECT, (ADDRESS, (INTEGER, 4096))), results)
-
