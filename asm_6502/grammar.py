@@ -218,9 +218,17 @@ def p_stat_val_indexed(p):
     return p
 
 
+def p_stat_val_indexed_indirect(p):
+    """stat_val : '(' arithmetic ',' REGISTER ')'"""
+    if p[4][0] != 'X':
+        raise ParseError(f"Only register X can be used for indexed indirect addressing, found {p[4][0]} at "
+                         f"{p.lineno(4)}, column {get_column(p, index=4)}")
+    p[0] = (ADDRESSING.INDEXED_INDIRECT, (ADDRESS, p[2]), (REGISTER, p[4]))
+    return p
+
+
 def p_stat_val(p):
     """stat_val : BIT LABEL
-                | '(' arithmetic ',' REGISTER ')'
                 | '(' arithmetic ')' ',' REGISTER
     """
     p[0] = None
