@@ -334,3 +334,51 @@ class Assembler(object):
                 raise AssembleError(f"Absolute indexed addressing is not allowed for STY "
                                     f"at line {self.line_number}")
             self._extend_byte_address(0x94, addressing)
+
+    @_addressing_guard(allowed={Addressing.IMPLIED})
+    def pre_tax(self, addressing: Addressing):
+        return 1
+
+    @_assemble_guard
+    def gen_tax(self, index, addressing: Addressing):
+        self._extend_implied(0xAA)
+
+    @_addressing_guard(allowed={Addressing.IMPLIED})
+    def pre_tay(self, addressing: Addressing):
+        return 1
+
+    @_assemble_guard
+    def gen_tay(self, index, addressing: Addressing):
+        self._extend_implied(0xA8)
+
+    @_addressing_guard(allowed={Addressing.IMPLIED})
+    def pre_tsx(self, addressing: Addressing):
+        return 1
+
+    @_assemble_guard
+    def gen_tsx(self, index, addressing: Addressing):
+        self._extend_implied(0xBA)
+
+    @_addressing_guard(allowed={Addressing.IMPLIED})
+    def pre_txa(self, addressing: Addressing):
+        return 1
+
+    @_assemble_guard
+    def gen_txa(self, index, addressing: Addressing):
+        self._extend_implied(0x8A)
+
+    @_addressing_guard(allowed={Addressing.IMPLIED})
+    def pre_txs(self, addressing: Addressing):
+        return 1
+
+    @_assemble_guard
+    def gen_txs(self, index, addressing: Addressing):
+        self._extend_implied(0x9A)
+
+    @_addressing_guard(allowed={Addressing.IMPLIED})
+    def pre_tya(self, addressing: Addressing):
+        return 1
+
+    @_assemble_guard
+    def gen_tya(self, index, addressing: Addressing):
+        self._extend_implied(0x98)
