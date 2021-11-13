@@ -144,6 +144,9 @@ class Assembler(object):
                           address=self._resolve_address_recur(addressing.address),
                           register=addressing.register)
 
+    def _extend_implied(self, code):
+        self.codes[-1][1].append(code)
+
     def _extend_byte_address(self, code, addressing: Addressing):
         self.codes[-1][1].extend([code, addressing.address.value])
 
@@ -169,6 +172,14 @@ class Assembler(object):
             self._extend_word_address(0x4C, addressing)
         elif addressing.mode == Addressing.INDIRECT:
             self._extend_word_address(0x6C, addressing)
+
+    @_addressing_guard(allowed={Addressing.ADDRESS})
+    def pre_jsr(self, addressing: Addressing):
+        return 3
+
+    @_assemble_guard
+    def gen_jsr(self, index, addressing: Addressing):
+        self._extend_word_address(0x20, addressing)
 
     @_addressing_guard(allowed={Addressing.IMMEDIATE, Addressing.ADDRESS, Addressing.INDEXED,
                                 Addressing.INDEXED_INDIRECT, Addressing.INDIRECT_INDEXED})
@@ -250,7 +261,15 @@ class Assembler(object):
 
     @_assemble_guard
     def gen_nop(self, index, addressing: Addressing):
-        self.codes[-1][1].append(0xEA)
+        self._extend_implied(0xEA)
+
+    @_addressing_guard(allowed={Addressing.IMPLIED})
+    def pre_rts(self, addressing: Addressing):
+        return 1
+
+    @_assemble_guard
+    def gen_rts(self, index, addressing: Addressing):
+        self._extend_implied(0x60)
 
     @_addressing_guard(allowed={Addressing.ADDRESS, Addressing.INDEXED,
                                 Addressing.INDEXED_INDIRECT, Addressing.INDIRECT_INDEXED})
