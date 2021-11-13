@@ -55,7 +55,7 @@ class Assembler(object):
             self.line_number = inst.line_num
             if inst.label is not None and inst.op != 'ORG':
                 self.label_offsets[inst.label] = self.code_offset
-            offset = getattr(self, f'pre_{inst.op}')(inst.addressing)
+            offset = getattr(self, f'pre_{inst.op.lower()}')(inst.addressing)
             if inst.label is not None and inst.op == 'ORG':
                 self.label_offsets[inst.label] = self.code_offset
             if self.code_start == -1 and inst.op in Instruction.KEYWORDS:
@@ -70,12 +70,12 @@ class Assembler(object):
         for i, inst in enumerate(instructions):
             self.line_number = inst.line_num
             self.code_offset = self.code_offsets[i]
-            getattr(self, f'gen_{inst.op}')(i, inst.addressing)
+            getattr(self, f'gen_{inst.op.lower()}')(i, inst.addressing)
         while len(self.codes) and len(self.codes[-1][1]) == 0:
             del self.codes[-1]
         if add_entry:
             self.code_offset = 0xFFFC
-            self.gen_JMP(None, Addressing(Addressing.ADDRESS, address=Integer(is_word=True, value=self.code_start)))
+            self.gen_jmp(None, Addressing(Addressing.ADDRESS, address=Integer(is_word=True, value=self.code_start)))
         return self.codes
 
     def _addressing_guard(allowed: Iterable[str]):
@@ -83,8 +83,8 @@ class Assembler(object):
             @wraps(func)
             def inner(self, addressing):
                 if addressing.mode not in allowed:
-                    keyword = func.__name__[4:]
-                    raise AssembleError(f"The addressing is not allowed for `{keyword}` "
+                    keyword = func.__name__[4:].upper()
+                    raise AssembleError(f"{addressing.mode.capitalize()} addressing is not allowed for `{keyword}` "
                                         f"at line {self.line_number}")
                 self.fit_zero_pages.append(False)
                 if addressing.mode in {Addressing.ADDRESS, Addressing.INDEXED}:
@@ -151,20 +151,20 @@ class Assembler(object):
         self.codes[-1][1].extend([code, addressing.address.low_byte().value, addressing.address.high_byte().value])
 
     @_addressing_guard(allowed={Addressing.ADDRESS})
-    def pre_ORG(self, addressing: Addressing):
+    def pre_org(self, addressing: Addressing):
         self.code_offset = self._resolve_address(addressing).address.value
         return 0
 
     @_assemble_guard
-    def gen_ORG(self, index, addressing: Addressing):
+    def gen_org(self, index, addressing: Addressing):
         pass
 
     @_addressing_guard(allowed={Addressing.ADDRESS, Addressing.INDIRECT})
-    def pre_JMP(self, addressing: Addressing):
+    def pre_jmp(self, addressing: Addressing):
         return 3
 
     @_assemble_guard
-    def gen_JMP(self, index, addressing: Addressing):
+    def gen_jmp(self, index, addressing: Addressing):
         if addressing.mode == Addressing.ADDRESS:
             self._extend_word_address(0x4C, addressing)
         elif addressing.mode == Addressing.INDIRECT:
@@ -172,13 +172,13 @@ class Assembler(object):
 
     @_addressing_guard(allowed={Addressing.IMMEDIATE, Addressing.ADDRESS, Addressing.INDEXED,
                                 Addressing.INDEXED_INDIRECT, Addressing.INDIRECT_INDEXED})
-    def pre_LDA(self, addressing: Addressing):
+    def pre_lda(self, addressing: Addressing):
         if addressing.mode in {Addressing.ADDRESS, Addressing.INDEXED}:
             return 2 if self.fit_zero_pages[-1] else 3
         return 2
 
     @_assemble_guard
-    def gen_LDA(self, index, addressing: Addressing):
+    def gen_lda(self, index, addressing: Addressing):
         if addressing.mode == Addressing.IMMEDIATE:
             self._extend_byte_address(0xA9, addressing)
         elif addressing.mode == Addressing.ADDRESS:
@@ -199,13 +199,13 @@ class Assembler(object):
             self._extend_byte_address(0xB1, addressing)
 
     @_addressing_guard(allowed={Addressing.IMMEDIATE, Addressing.ADDRESS, Addressing.INDEXED})
-    def pre_LDX(self, addressing: Addressing):
+    def pre_ldx(self, addressing: Addressing):
         if addressing.mode in {Addressing.ADDRESS, Addressing.INDEXED}:
             return 2 if self.fit_zero_pages[-1] else 3
         return 2
 
     @_assemble_guard
-    def gen_LDX(self, index, addressing: Addressing):
+    def gen_ldx(self, index, addressing: Addressing):
         if addressing.mode == Addressing.IMMEDIATE:
             self._extend_byte_address(0xA2, addressing)
         elif addressing.mode == Addressing.ADDRESS:
@@ -222,13 +222,13 @@ class Assembler(object):
                 self._extend_word_address(0xBE, addressing)
 
     @_addressing_guard(allowed={Addressing.IMMEDIATE, Addressing.ADDRESS, Addressing.INDEXED})
-    def pre_LDY(self, addressing: Addressing):
+    def pre_ldy(self, addressing: Addressing):
         if addressing.mode in {Addressing.ADDRESS, Addressing.INDEXED}:
             return 2 if self.fit_zero_pages[-1] else 3
         return 2
 
     @_assemble_guard
-    def gen_LDY(self, index, addressing: Addressing):
+    def gen_ldy(self, index, addressing: Addressing):
         if addressing.mode == Addressing.IMMEDIATE:
             self._extend_byte_address(0xA0, addressing)
         elif addressing.mode == Addressing.ADDRESS:
@@ -245,9 +245,35 @@ class Assembler(object):
                 self._extend_word_address(0xBC, addressing)
 
     @_addressing_guard(allowed={Addressing.IMPLIED})
-    def pre_NOP(self, addressing: Addressing):
+    def pre_nop(self, addressing: Addressing):
         return 1
 
     @_assemble_guard
-    def gen_NOP(self, index, addressing: Addressing):
+    def gen_nop(self, index, addressing: Addressing):
         self.codes[-1][1].append(0xEA)
+
+    @_addressing_guard(allowed={Addressing.ADDRESS, Addressing.INDEXED,
+                                Addressing.INDEXED_INDIRECT, Addressing.INDIRECT_INDEXED})
+    def pre_sta(self, addressing: Addressing):
+        if addressing.mode in {Addressing.ADDRESS, Addressing.INDEXED}:
+            return 2 if self.fit_zero_pages[-1] else 3
+        return 2
+
+    @_assemble_guard
+    def gen_sta(self, index, addressing: Addressing):
+        if addressing.mode == Addressing.ADDRESS:
+            if self.fit_zero_pages[index]:
+                self._extend_byte_address(0x85, addressing)
+            else:
+                self._extend_word_address(0x8D, addressing)
+        elif addressing.mode == Addressing.INDEXED:
+            if self.fit_zero_pages[index] and addressing.register == 'X':
+                self._extend_byte_address(0x95, addressing)
+            elif addressing.register == 'X':
+                self._extend_word_address(0x9D, addressing)
+            else:
+                self._extend_word_address(0x99, addressing)
+        elif addressing.mode == Addressing.INDEXED_INDIRECT:
+            self._extend_byte_address(0x81, addressing)
+        elif addressing.mode == Addressing.INDIRECT_INDEXED:
+            self._extend_byte_address(0x91, addressing)

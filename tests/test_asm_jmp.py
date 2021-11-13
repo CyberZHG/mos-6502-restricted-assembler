@@ -36,7 +36,7 @@ class TestAssembleJMP(TestCase):
         code = "JMP ($0080),Y"
         with self.assertRaises(AssembleError) as e:
             self.assembler.assemble(code)
-        self.assertEqual("AssembleError: The addressing is not allowed for `JMP` at line 1",
+        self.assertEqual("AssembleError: Indirect indexed addressing is not allowed for `JMP` at line 1",
                          str(e.exception))
 
     def test_jmp_unknown_label(self):

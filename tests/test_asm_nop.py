@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from asm_6502 import Assembler, AssembleError
+from asm_6502 import Assembler
 
 
 class TestAssembleNOP(TestCase):

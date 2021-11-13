@@ -58,8 +58,8 @@ class Addressing(namedtuple('Addressing', ['mode', 'address', 'register'], defau
     ADDRESS = 'address'
     INDIRECT = 'indirect'
     INDEXED = 'indexed'
-    INDEXED_INDIRECT = 'indexed_indirect'
-    INDIRECT_INDEXED = 'indirect_indexed'
+    INDEXED_INDIRECT = 'indexed indirect'
+    INDIRECT_INDEXED = 'indirect indexed'
 
 
 class Arithmetic(namedtuple('Arithmetic', ['mode', 'param'], defaults=[None, None])):

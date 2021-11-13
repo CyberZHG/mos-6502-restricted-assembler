@@ -39,13 +39,25 @@ results = assembler.assemble(code)
 
 ## Instructions
 
-### ORG
+### Pseudo
+
+#### ORG
 
 ```
 ORG $0080    ; The following codes will be generated from this offset
 ```
 
-### JMP
+### Special
+
+#### NOP
+
+```
+NOP          ; Do nothing
+```
+
+### Jump
+
+#### JMP
 
 Absolute addressing:
 
@@ -72,7 +84,9 @@ START ORG $0080
       JMP ($0080)
 ```
 
-### LDA
+### Load
+
+#### LDA
 
 ```
 LDA #10             ; Load $0A into the accumulator
@@ -96,7 +110,7 @@ LDA LABEL           ; This is not zero-page addressing no matter where LABEL poi
 LDA $FF+10-10       ; This is not zero-page addressing as the intermedidate result is greater than a byte
 ```
 
-### LDX 
+#### LDX 
 
 ```
 LDX #10             ; Load $0A into the X
@@ -106,7 +120,7 @@ LDX $ABCD           ; Load into X from address $ABCD
 LDX $ABCD,Y         ; Load into X from address $ABCD + Y
 ```
 
-### LDY
+#### LDY
 
 ```
 LDY #10             ; Load $0A into the Y
@@ -115,3 +129,9 @@ LDY $10,X           ; Load into Y from zero-page address ($10 + X) % $0100
 LDY $ABCD           ; Load into Y from address $ABCD
 LDY $ABCD,X         ; Load into Y from address $ABCD + X
 ```
+
+### Store
+
+### STA, STX, STY
+
+Basically, they are the inverse operation of `LDA`, `LDX`, and `LDY`, respectively. You can not use immediate addressing in these operations.
