@@ -1,4 +1,4 @@
-from typing import Union, List, Iterable, Dict
+from typing import Union, List, Iterable
 from functools import wraps
 
 from .grammar import get_parser, Integer, Addressing, Arithmetic, Instruction
@@ -173,7 +173,7 @@ class Assembler(object):
         self.reset()
         for i, inst in enumerate(instructions):
             self.line_number = inst.line_num
-            if inst.label is not None and inst.op != 'ORG':
+            if inst.label is not None and not inst.op.endswith('ORG'):
                 self.label_offsets[inst.label] = self.code_offset
             if inst.op in CODE_MAP_IMPLIED:
                 offset = self._get_num_bytes_type_implied(inst.addressing)
@@ -184,8 +184,11 @@ class Assembler(object):
             elif inst.op in CODE_MAPS_A_M:
                 offset = self._get_num_bytes_type_a_m(inst.addressing)
             else:
-                offset = getattr(self, f'pre_{inst.op.lower()}')(inst.addressing)
-            if inst.label is not None and inst.op == 'ORG':
+                op_name = inst.op.lower()
+                if op_name.startswith('.'):
+                    op_name = op_name[1:]
+                offset = getattr(self, f'pre_{op_name}')(inst.addressing)
+            if inst.label is not None and inst.op.endswith('ORG'):
                 self.label_offsets[inst.label] = self.code_offset
             if self.code_start == -1 and inst.op in Instruction.KEYWORDS:
                 self.code_start = self.code_offset
@@ -208,7 +211,10 @@ class Assembler(object):
             elif inst.op in CODE_MAPS_A_M:
                 self._extend_address_type_a_m(i, inst.addressing, inst.op)
             else:
-                getattr(self, f'gen_{inst.op.lower()}')(i, inst.addressing)
+                op_name = inst.op.lower()
+                if op_name.startswith('.'):
+                    op_name = op_name[1:]
+                getattr(self, f'gen_{op_name}')(i, inst.addressing)
         while len(self.codes) and len(self.codes[-1][1]) == 0:
             del self.codes[-1]
         if add_entry:
@@ -368,6 +374,33 @@ class Assembler(object):
     @_assemble_guard
     def gen_org(self, index, addressing: Addressing):
         pass
+
+    @_addressing_guard(allowed={Addressing.IMPLIED})
+    def pre_end(self, addressing: Addressing):
+        return 3
+
+    @_assemble_guard
+    def gen_end(self, index, addressing: Addressing):
+        address = Integer(is_word=True, value=self.codes[-1][0])
+        self.codes[-1][1].extend([0x4C, address.low_byte().value, address.high_byte().value])
+
+    @_addressing_guard(allowed={Addressing.ADDRESS})
+    def pre_byte(self, addressing: Addressing):
+        return 1
+
+    @_assemble_guard
+    def gen_byte(self, index, addressing: Addressing):
+        if addressing.address.value > 0xFF:
+            raise AssembleError(f"{hex(addressing.address.value)} can not fit in a byte at line {self.line_number}")
+        self._extend_byte(addressing.address.value)
+
+    @_addressing_guard(allowed={Addressing.ADDRESS})
+    def pre_word(self, addressing: Addressing):
+        return 2
+
+    @_assemble_guard
+    def gen_word(self, index, addressing: Addressing):
+        self.codes[-1][1].extend([addressing.address.low_byte().value, addressing.address.high_byte().value])
 
     @_addressing_guard(allowed={Addressing.ADDRESS, Addressing.INDIRECT})
     def pre_jmp(self, addressing: Addressing):
