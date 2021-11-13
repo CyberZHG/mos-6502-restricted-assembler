@@ -33,7 +33,7 @@ class TestAssembleLDY(TestCase):
         code = "LDY $10,Y"
         with self.assertRaises(AssembleError) as e:
             self.assembler.assemble(code)
-        self.assertEqual("AssembleError: Can not use Y as the index register in LDX at line 1",
+        self.assertEqual("AssembleError: Can not use Y as the index register in LDY at line 1",
                          str(e.exception))
 
     def test_ldy_absolute(self):

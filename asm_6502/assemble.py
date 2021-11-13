@@ -238,7 +238,7 @@ class Assembler(object):
                 self._extend_word_address(0xAC, addressing)
         elif addressing.mode == Addressing.INDEXED:
             if addressing.register == 'Y':
-                raise AssembleError(f"Can not use Y as the index register in LDX at line {self.line_number}")
+                raise AssembleError(f"Can not use Y as the index register in LDY at line {self.line_number}")
             if self.fit_zero_pages[index]:
                 self._extend_byte_address(0xB4, addressing)
             else:
@@ -277,3 +277,22 @@ class Assembler(object):
             self._extend_byte_address(0x81, addressing)
         elif addressing.mode == Addressing.INDIRECT_INDEXED:
             self._extend_byte_address(0x91, addressing)
+
+    @_addressing_guard(allowed={Addressing.ADDRESS, Addressing.INDEXED})
+    def pre_stx(self, addressing: Addressing):
+        return 2 if self.fit_zero_pages[-1] else 3
+
+    @_assemble_guard
+    def gen_stx(self, index, addressing: Addressing):
+        if addressing.mode == Addressing.ADDRESS:
+            if self.fit_zero_pages[index]:
+                self._extend_byte_address(0x86, addressing)
+            else:
+                self._extend_word_address(0x8E, addressing)
+        elif addressing.mode == Addressing.INDEXED:
+            if addressing.register == 'X':
+                raise AssembleError(f"Can not use X as the index register in STX at line {self.line_number}")
+            if addressing.address.value > 0xFF:
+                raise AssembleError(f"The value {hex(addressing.address.value)} is too large for zero-page addressing "
+                                    f"at line {self.line_number}")
+            self._extend_byte_address(0x96, addressing)
