@@ -114,6 +114,8 @@ class Assembler(object):
         return inner
 
     def _resolve_address_recur(self, arithmetic: Union[Integer, Arithmetic]) -> Integer:
+        if arithmetic is None:
+            return None
         if isinstance(arithmetic, Integer):
             return arithmetic
         if arithmetic.mode == Arithmetic.CURRENT:
@@ -241,3 +243,11 @@ class Assembler(object):
                 self._extend_byte_address(0xB4, addressing)
             else:
                 self._extend_word_address(0xBC, addressing)
+
+    @_addressing_guard(allowed={Addressing.IMPLIED})
+    def pre_NOP(self, addressing: Addressing):
+        return 1
+
+    @_assemble_guard
+    def gen_NOP(self, index, addressing: Addressing):
+        self.codes[-1][1].append(0xEA)
