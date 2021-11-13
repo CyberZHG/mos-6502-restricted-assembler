@@ -134,4 +134,6 @@ LDY $ABCD,X         ; Load into Y from address $ABCD + X
 
 ### STA, STX, STY
 
-Basically, they are the inverse operation of `LDA`, `LDX`, and `LDY`, respectively. You can not use immediate addressing in these operations.
+Basically, they are the inverse operation of `LDA`, `LDX`, and `LDY`, respectively.
+You can not use immediate addressing in these operations,
+and you can not use indexed absolute addressing in `LDX` and `LDY`.

@@ -293,6 +293,25 @@ class Assembler(object):
             if addressing.register == 'X':
                 raise AssembleError(f"Can not use X as the index register in STX at line {self.line_number}")
             if addressing.address.value > 0xFF:
-                raise AssembleError(f"The value {hex(addressing.address.value)} is too large for zero-page addressing "
+                raise AssembleError(f"Absolute indexed addressing is not allowed for STX "
                                     f"at line {self.line_number}")
             self._extend_byte_address(0x96, addressing)
+
+    @_addressing_guard(allowed={Addressing.ADDRESS, Addressing.INDEXED})
+    def pre_sty(self, addressing: Addressing):
+        return 2 if self.fit_zero_pages[-1] else 3
+
+    @_assemble_guard
+    def gen_sty(self, index, addressing: Addressing):
+        if addressing.mode == Addressing.ADDRESS:
+            if self.fit_zero_pages[index]:
+                self._extend_byte_address(0x84, addressing)
+            else:
+                self._extend_word_address(0x8C, addressing)
+        elif addressing.mode == Addressing.INDEXED:
+            if addressing.register == 'Y':
+                raise AssembleError(f"Can not use Y as the index register in STY at line {self.line_number}")
+            if addressing.address.value > 0xFF:
+                raise AssembleError(f"Absolute indexed addressing is not allowed for STY "
+                                    f"at line {self.line_number}")
+            self._extend_byte_address(0x94, addressing)

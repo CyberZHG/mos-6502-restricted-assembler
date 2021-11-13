@@ -40,5 +40,5 @@ class TestAssembleSTX(TestCase):
         code = "STX $ABCD,Y"
         with self.assertRaises(AssembleError) as e:
             self.assembler.assemble(code)
-        self.assertEqual("AssembleError: The value 0xabcd is too large for zero-page addressing at line 1",
+        self.assertEqual("AssembleError: Absolute indexed addressing is not allowed for STX at line 1",
                          str(e.exception))
