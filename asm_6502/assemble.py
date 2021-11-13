@@ -1,4 +1,4 @@
-from typing import Union, List, Iterable
+from typing import Union, List, Iterable, Dict
 from functools import wraps
 
 from .grammar import get_parser, Integer, Addressing, Arithmetic, Instruction
@@ -18,6 +18,116 @@ class AssembleError(Exception):
 
     def __repr__(self):
         return f'AssembleError("{self.info}")'
+
+
+CODE_MAP_IMPLIED = {
+    'BRK': 0x00, 'CLC': 0x18, 'CLD': 0xD8, 'CLI': 0x58, 'CLV': 0xB8,
+    'DEX': 0xCA, 'DEY': 0x88, 'INX': 0xE8, 'INY': 0xC8, 'NOP': 0xEA,
+    'PHA': 0x48, 'PHP': 0x08, 'PLA': 0x68, 'PLP': 0x28, 'RTI': 0x40,
+    'RTS': 0x60, 'SEC': 0x38, 'SED': 0xF8, 'SEI': 0x78, 'TAX': 0xAA,
+    'TAY': 0xA8, 'TSX': 0xBA, 'TXA': 0x8A, 'TXS': 0x9A, 'TYA': 0x98,
+}
+
+CODE_MAP_RELATIVE = {
+    'BCC': 0x90, 'BCS': 0xB0, 'BEQ': 0xF0, 'BMI': 0x30, 'BNE': 0xD0,
+    'BPL': 0x10, 'BVC': 0x50, 'BVS': 0x70,
+}
+
+
+CODE_MAPS_LOAD_A = {
+    'ADC': {
+        Addressing.IMMEDIATE: 0x69,
+        Addressing.ZERO_PAGE: 0x65,
+        Addressing.ZERO_PAGE_X: 0x75,
+        Addressing.ABSOLUTE: 0x6D,
+        Addressing.ABSOLUTE_X: 0x7D,
+        Addressing.ABSOLUTE_Y: 0x79,
+        Addressing.INDEXED_INDIRECT: 0x61,
+        Addressing.INDIRECT_INDEXED: 0x71,
+    },
+    'AND': {
+        Addressing.IMMEDIATE: 0x29,
+        Addressing.ZERO_PAGE: 0x25,
+        Addressing.ZERO_PAGE_X: 0x35,
+        Addressing.ABSOLUTE: 0x2D,
+        Addressing.ABSOLUTE_X: 0x3D,
+        Addressing.ABSOLUTE_Y: 0x39,
+        Addressing.INDEXED_INDIRECT: 0x21,
+        Addressing.INDIRECT_INDEXED: 0x31,
+    },
+    'CMP': {
+        Addressing.IMMEDIATE: 0xC9,
+        Addressing.ZERO_PAGE: 0xC5,
+        Addressing.ZERO_PAGE_X: 0xD5,
+        Addressing.ABSOLUTE: 0xCD,
+        Addressing.ABSOLUTE_X: 0xDD,
+        Addressing.ABSOLUTE_Y: 0xD9,
+        Addressing.INDEXED_INDIRECT: 0xC1,
+        Addressing.INDIRECT_INDEXED: 0xD1,
+    },
+    'EOR': {
+        Addressing.IMMEDIATE: 0x49,
+        Addressing.ZERO_PAGE: 0x45,
+        Addressing.ZERO_PAGE_X: 0x55,
+        Addressing.ABSOLUTE: 0x4D,
+        Addressing.ABSOLUTE_X: 0x5D,
+        Addressing.ABSOLUTE_Y: 0x59,
+        Addressing.INDEXED_INDIRECT: 0x41,
+        Addressing.INDIRECT_INDEXED: 0x51,
+    },
+    'LDA': {
+        Addressing.IMMEDIATE: 0xA9,
+        Addressing.ZERO_PAGE: 0xA5,
+        Addressing.ZERO_PAGE_X: 0xB5,
+        Addressing.ABSOLUTE: 0xAD,
+        Addressing.ABSOLUTE_X: 0xBD,
+        Addressing.ABSOLUTE_Y: 0xB9,
+        Addressing.INDEXED_INDIRECT: 0xA1,
+        Addressing.INDIRECT_INDEXED: 0xB1,
+    },
+    'ORA': {
+        Addressing.IMMEDIATE: 0x09,
+        Addressing.ZERO_PAGE: 0x05,
+        Addressing.ZERO_PAGE_X: 0x15,
+        Addressing.ABSOLUTE: 0x0D,
+        Addressing.ABSOLUTE_X: 0x1D,
+        Addressing.ABSOLUTE_Y: 0x19,
+        Addressing.INDEXED_INDIRECT: 0x01,
+        Addressing.INDIRECT_INDEXED: 0x11,
+    },
+    'SBC': {
+        Addressing.IMMEDIATE: 0xE9,
+        Addressing.ZERO_PAGE: 0xE5,
+        Addressing.ZERO_PAGE_X: 0xF5,
+        Addressing.ABSOLUTE: 0xED,
+        Addressing.ABSOLUTE_X: 0xFD,
+        Addressing.ABSOLUTE_Y: 0xF9,
+        Addressing.INDEXED_INDIRECT: 0xE1,
+        Addressing.INDIRECT_INDEXED: 0xF1,
+    },
+}
+
+
+CODE_MAPS_LOAD_X = {
+    'LDX': {
+        Addressing.IMMEDIATE: 0xA2,
+        Addressing.ZERO_PAGE: 0xA6,
+        Addressing.ZERO_PAGE_Y: 0xB6,
+        Addressing.ABSOLUTE: 0xAE,
+        Addressing.ABSOLUTE_Y: 0xBE,
+    },
+}
+
+
+CODE_MAPS_LOAD_Y = {
+    'LDY': {
+        Addressing.IMMEDIATE: 0xA0,
+        Addressing.ZERO_PAGE: 0xA4,
+        Addressing.ZERO_PAGE_X: 0xB4,
+        Addressing.ABSOLUTE: 0xAC,
+        Addressing.ABSOLUTE_X: 0xBC,
+    },
+}
 
 
 class Assembler(object):
@@ -55,7 +165,18 @@ class Assembler(object):
             self.line_number = inst.line_num
             if inst.label is not None and inst.op != 'ORG':
                 self.label_offsets[inst.label] = self.code_offset
-            offset = getattr(self, f'pre_{inst.op.lower()}')(inst.addressing)
+            if inst.op in CODE_MAP_IMPLIED:
+                offset = self._get_num_bytes_type_implied(inst.addressing)
+            elif inst.op in CODE_MAP_RELATIVE:
+                offset = self._get_num_bytes_type_relative(inst.addressing)
+            elif inst.op in CODE_MAPS_LOAD_A:
+                offset = self._get_num_bytes_type_load_a(inst.addressing)
+            elif inst.op in CODE_MAPS_LOAD_X:
+                offset = self._get_num_bytes_type_load_x(inst.addressing)
+            elif inst.op in CODE_MAPS_LOAD_Y:
+                offset = self._get_num_bytes_type_load_y(inst.addressing)
+            else:
+                offset = getattr(self, f'pre_{inst.op.lower()}')(inst.addressing)
             if inst.label is not None and inst.op == 'ORG':
                 self.label_offsets[inst.label] = self.code_offset
             if self.code_start == -1 and inst.op in Instruction.KEYWORDS:
@@ -70,7 +191,18 @@ class Assembler(object):
         for i, inst in enumerate(instructions):
             self.line_number = inst.line_num
             self.code_offset = self.code_offsets[i]
-            getattr(self, f'gen_{inst.op.lower()}')(i, inst.addressing)
+            if inst.op in CODE_MAP_IMPLIED:
+                self._extend_address_type_implied(i, inst.addressing, inst.op)
+            elif inst.op in CODE_MAP_RELATIVE:
+                self._extend_address_type_relative(i, inst.addressing, inst.op)
+            elif inst.op in CODE_MAPS_LOAD_A:
+                self._extend_address_type_load_a(i, inst.addressing, inst.op)
+            elif inst.op in CODE_MAPS_LOAD_X:
+                self._extend_address_type_load_x(i, inst.addressing, inst.op)
+            elif inst.op in CODE_MAPS_LOAD_Y:
+                self._extend_address_type_load_y(i, inst.addressing, inst.op)
+            else:
+                getattr(self, f'gen_{inst.op.lower()}')(i, inst.addressing)
         while len(self.codes) and len(self.codes[-1][1]) == 0:
             del self.codes[-1]
         if add_entry:
@@ -100,7 +232,7 @@ class Assembler(object):
         return deco
 
     def _assemble_guard(func):
-        def inner(self, index, addressing):
+        def inner(self, index, addressing, *args, **kwargs):
             while len(self.codes) and len(self.codes[-1][1]) == 0:
                 del self.codes[-1]
             if len(self.codes) == 0 or self.code_offset != self.codes[-1][0] + len(self.codes[-1][1]):
@@ -110,7 +242,7 @@ class Assembler(object):
                     and addressing.address.value > 0xFF:
                 raise AssembleError(f"The value {hex(addressing.address.value)} is too large for the addressing "
                                     f"at line {self.line_number}")
-            return func(self, index, addressing)
+            return func(self, index, addressing, *args, **kwargs)
         return inner
 
     def _resolve_address_recur(self, arithmetic: Union[Integer, Arithmetic]) -> Integer:
@@ -144,14 +276,104 @@ class Assembler(object):
                           address=self._resolve_address_recur(addressing.address),
                           register=addressing.register)
 
-    def _extend_implied(self, code):
-        self.codes[-1][1].append(code)
-
     def _extend_byte_address(self, code, addressing: Addressing):
         self.codes[-1][1].extend([code, addressing.address.value])
 
     def _extend_word_address(self, code, addressing: Addressing):
         self.codes[-1][1].extend([code, addressing.address.low_byte().value, addressing.address.high_byte().value])
+
+    @_addressing_guard(allowed={Addressing.IMPLIED})
+    def _get_num_bytes_type_implied(self, addressing: Addressing):
+        return 1
+
+    @_assemble_guard
+    def _extend_address_type_implied(self, index, addressing: Addressing, op: str):
+        self.codes[-1][1].append(CODE_MAP_IMPLIED[op])
+
+    @_addressing_guard(allowed={Addressing.ADDRESS})
+    def _get_num_bytes_type_relative(self, addressing: Addressing):
+        return 1
+
+    @_assemble_guard
+    def _extend_address_type_relative(self, index, addressing: Addressing, op: str):
+        self._extend_word_address(CODE_MAP_RELATIVE[op], addressing)
+
+    @_addressing_guard(allowed={Addressing.IMMEDIATE, Addressing.ADDRESS, Addressing.INDEXED,
+                                Addressing.INDEXED_INDIRECT, Addressing.INDIRECT_INDEXED})
+    def _get_num_bytes_type_load_a(self, addressing: Addressing):
+        if addressing.mode in {Addressing.ADDRESS, Addressing.INDEXED}:
+            return 2 if self.fit_zero_pages[-1] else 3
+        return 2
+
+    @_assemble_guard
+    def _extend_address_type_load_a(self, index, addressing: Addressing, op: str):
+        code_map = CODE_MAPS_LOAD_A[op]
+        if addressing.mode == Addressing.IMMEDIATE:
+            self._extend_byte_address(code_map[Addressing.IMMEDIATE], addressing)
+        elif addressing.mode == Addressing.ADDRESS:
+            if self.fit_zero_pages[index]:
+                self._extend_byte_address(code_map[Addressing.ZERO_PAGE], addressing)
+            else:
+                self._extend_word_address(code_map[Addressing.ABSOLUTE], addressing)
+        elif addressing.mode == Addressing.INDEXED:
+            if self.fit_zero_pages[index] and addressing.register == 'X':
+                self._extend_byte_address(code_map[Addressing.ZERO_PAGE_X], addressing)
+            elif addressing.register == 'X':
+                self._extend_word_address(code_map[Addressing.ABSOLUTE_X], addressing)
+            else:
+                self._extend_word_address(code_map[Addressing.ABSOLUTE_Y], addressing)
+        elif addressing.mode == Addressing.INDEXED_INDIRECT:
+            self._extend_byte_address(code_map[Addressing.INDEXED_INDIRECT], addressing)
+        elif addressing.mode == Addressing.INDIRECT_INDEXED:
+            self._extend_byte_address(code_map[Addressing.INDIRECT_INDEXED], addressing)
+
+    @_addressing_guard(allowed={Addressing.IMMEDIATE, Addressing.ADDRESS, Addressing.INDEXED})
+    def _get_num_bytes_type_load_x(self, addressing: Addressing):
+        if addressing.mode in {Addressing.ADDRESS, Addressing.INDEXED}:
+            return 2 if self.fit_zero_pages[-1] else 3
+        return 2
+
+    @_assemble_guard
+    def _extend_address_type_load_x(self, index, addressing: Addressing, op: str):
+        code_map = CODE_MAPS_LOAD_X[op]
+        if addressing.mode == Addressing.IMMEDIATE:
+            self._extend_byte_address(code_map[Addressing.IMMEDIATE], addressing)
+        elif addressing.mode == Addressing.ADDRESS:
+            if self.fit_zero_pages[index]:
+                self._extend_byte_address(code_map[Addressing.ZERO_PAGE], addressing)
+            else:
+                self._extend_word_address(code_map[Addressing.ABSOLUTE], addressing)
+        elif addressing.mode == Addressing.INDEXED:
+            if addressing.register == 'X':
+                raise AssembleError(f"Can not use X as the index register in {op} at line {self.line_number}")
+            if self.fit_zero_pages[index]:
+                self._extend_byte_address(code_map[Addressing.ZERO_PAGE_Y], addressing)
+            else:
+                self._extend_word_address(code_map[Addressing.ABSOLUTE_Y], addressing)
+
+    @_addressing_guard(allowed={Addressing.IMMEDIATE, Addressing.ADDRESS, Addressing.INDEXED})
+    def _get_num_bytes_type_load_y(self, addressing: Addressing):
+        if addressing.mode in {Addressing.ADDRESS, Addressing.INDEXED}:
+            return 2 if self.fit_zero_pages[-1] else 3
+        return 2
+
+    @_assemble_guard
+    def _extend_address_type_load_y(self, index, addressing: Addressing, op: str):
+        code_map = CODE_MAPS_LOAD_Y[op]
+        if addressing.mode == Addressing.IMMEDIATE:
+            self._extend_byte_address(code_map[Addressing.IMMEDIATE], addressing)
+        elif addressing.mode == Addressing.ADDRESS:
+            if self.fit_zero_pages[index]:
+                self._extend_byte_address(code_map[Addressing.ZERO_PAGE], addressing)
+            else:
+                self._extend_word_address(code_map[Addressing.ABSOLUTE], addressing)
+        elif addressing.mode == Addressing.INDEXED:
+            if addressing.register == 'Y':
+                raise AssembleError(f"Can not use Y as the index register in {op} at line {self.line_number}")
+            if self.fit_zero_pages[index]:
+                self._extend_byte_address(code_map[Addressing.ZERO_PAGE_X], addressing)
+            else:
+                self._extend_word_address(code_map[Addressing.ABSOLUTE_X], addressing)
 
     @_addressing_guard(allowed={Addressing.ADDRESS})
     def pre_org(self, addressing: Addressing):
@@ -180,96 +402,6 @@ class Assembler(object):
     @_assemble_guard
     def gen_jsr(self, index, addressing: Addressing):
         self._extend_word_address(0x20, addressing)
-
-    @_addressing_guard(allowed={Addressing.IMMEDIATE, Addressing.ADDRESS, Addressing.INDEXED,
-                                Addressing.INDEXED_INDIRECT, Addressing.INDIRECT_INDEXED})
-    def pre_lda(self, addressing: Addressing):
-        if addressing.mode in {Addressing.ADDRESS, Addressing.INDEXED}:
-            return 2 if self.fit_zero_pages[-1] else 3
-        return 2
-
-    @_assemble_guard
-    def gen_lda(self, index, addressing: Addressing):
-        if addressing.mode == Addressing.IMMEDIATE:
-            self._extend_byte_address(0xA9, addressing)
-        elif addressing.mode == Addressing.ADDRESS:
-            if self.fit_zero_pages[index]:
-                self._extend_byte_address(0xA5, addressing)
-            else:
-                self._extend_word_address(0xAD, addressing)
-        elif addressing.mode == Addressing.INDEXED:
-            if self.fit_zero_pages[index] and addressing.register == 'X':
-                self._extend_byte_address(0xB5, addressing)
-            elif addressing.register == 'X':
-                self._extend_word_address(0xBD, addressing)
-            else:
-                self._extend_word_address(0xB9, addressing)
-        elif addressing.mode == Addressing.INDEXED_INDIRECT:
-            self._extend_byte_address(0xA1, addressing)
-        elif addressing.mode == Addressing.INDIRECT_INDEXED:
-            self._extend_byte_address(0xB1, addressing)
-
-    @_addressing_guard(allowed={Addressing.IMMEDIATE, Addressing.ADDRESS, Addressing.INDEXED})
-    def pre_ldx(self, addressing: Addressing):
-        if addressing.mode in {Addressing.ADDRESS, Addressing.INDEXED}:
-            return 2 if self.fit_zero_pages[-1] else 3
-        return 2
-
-    @_assemble_guard
-    def gen_ldx(self, index, addressing: Addressing):
-        if addressing.mode == Addressing.IMMEDIATE:
-            self._extend_byte_address(0xA2, addressing)
-        elif addressing.mode == Addressing.ADDRESS:
-            if self.fit_zero_pages[index]:
-                self._extend_byte_address(0xA6, addressing)
-            else:
-                self._extend_word_address(0xAE, addressing)
-        elif addressing.mode == Addressing.INDEXED:
-            if addressing.register == 'X':
-                raise AssembleError(f"Can not use X as the index register in LDX at line {self.line_number}")
-            if self.fit_zero_pages[index]:
-                self._extend_byte_address(0xB6, addressing)
-            else:
-                self._extend_word_address(0xBE, addressing)
-
-    @_addressing_guard(allowed={Addressing.IMMEDIATE, Addressing.ADDRESS, Addressing.INDEXED})
-    def pre_ldy(self, addressing: Addressing):
-        if addressing.mode in {Addressing.ADDRESS, Addressing.INDEXED}:
-            return 2 if self.fit_zero_pages[-1] else 3
-        return 2
-
-    @_assemble_guard
-    def gen_ldy(self, index, addressing: Addressing):
-        if addressing.mode == Addressing.IMMEDIATE:
-            self._extend_byte_address(0xA0, addressing)
-        elif addressing.mode == Addressing.ADDRESS:
-            if self.fit_zero_pages[index]:
-                self._extend_byte_address(0xA4, addressing)
-            else:
-                self._extend_word_address(0xAC, addressing)
-        elif addressing.mode == Addressing.INDEXED:
-            if addressing.register == 'Y':
-                raise AssembleError(f"Can not use Y as the index register in LDY at line {self.line_number}")
-            if self.fit_zero_pages[index]:
-                self._extend_byte_address(0xB4, addressing)
-            else:
-                self._extend_word_address(0xBC, addressing)
-
-    @_addressing_guard(allowed={Addressing.IMPLIED})
-    def pre_nop(self, addressing: Addressing):
-        return 1
-
-    @_assemble_guard
-    def gen_nop(self, index, addressing: Addressing):
-        self._extend_implied(0xEA)
-
-    @_addressing_guard(allowed={Addressing.IMPLIED})
-    def pre_rts(self, addressing: Addressing):
-        return 1
-
-    @_assemble_guard
-    def gen_rts(self, index, addressing: Addressing):
-        self._extend_implied(0x60)
 
     @_addressing_guard(allowed={Addressing.ADDRESS, Addressing.INDEXED,
                                 Addressing.INDEXED_INDIRECT, Addressing.INDIRECT_INDEXED})
@@ -334,51 +466,3 @@ class Assembler(object):
                 raise AssembleError(f"Absolute indexed addressing is not allowed for STY "
                                     f"at line {self.line_number}")
             self._extend_byte_address(0x94, addressing)
-
-    @_addressing_guard(allowed={Addressing.IMPLIED})
-    def pre_tax(self, addressing: Addressing):
-        return 1
-
-    @_assemble_guard
-    def gen_tax(self, index, addressing: Addressing):
-        self._extend_implied(0xAA)
-
-    @_addressing_guard(allowed={Addressing.IMPLIED})
-    def pre_tay(self, addressing: Addressing):
-        return 1
-
-    @_assemble_guard
-    def gen_tay(self, index, addressing: Addressing):
-        self._extend_implied(0xA8)
-
-    @_addressing_guard(allowed={Addressing.IMPLIED})
-    def pre_tsx(self, addressing: Addressing):
-        return 1
-
-    @_assemble_guard
-    def gen_tsx(self, index, addressing: Addressing):
-        self._extend_implied(0xBA)
-
-    @_addressing_guard(allowed={Addressing.IMPLIED})
-    def pre_txa(self, addressing: Addressing):
-        return 1
-
-    @_assemble_guard
-    def gen_txa(self, index, addressing: Addressing):
-        self._extend_implied(0x8A)
-
-    @_addressing_guard(allowed={Addressing.IMPLIED})
-    def pre_txs(self, addressing: Addressing):
-        return 1
-
-    @_assemble_guard
-    def gen_txs(self, index, addressing: Addressing):
-        self._extend_implied(0x9A)
-
-    @_addressing_guard(allowed={Addressing.IMPLIED})
-    def pre_tya(self, addressing: Addressing):
-        return 1
-
-    @_assemble_guard
-    def gen_tya(self, index, addressing: Addressing):
-        self._extend_implied(0x98)
