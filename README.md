@@ -39,66 +39,43 @@ results = assembler.assemble(code)
 
 ## Instructions
 
-### Pseudo
+### List
 
-#### ORG
+|     |     |     |     |     |     |     |     |     |     |     |     |     |     |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| ADC | AND | ASL | BCC | BCS | BEQ | BIT | BMI | BNE | BPL | BRK | BVC | BVS | CLC |
+| CLD | CLI | CLV | CMP | CPX | CPY | DEC | DEX | DEY | EOR | INC | INX | INY | JMP |
+| JSR | LDA | LDX | LDY | LSR | NOP | ORA | PHA | PHP | PLA | PLP | ROL | ROR | RTI |
+| RTS | SBC | SEC | SED | SEI | STA | STX | STY | TAX | TAY | TSX | TXA | TXS | TYA |
+
+
+### Pseudo
 
 ```
 ORG $0080    ; The following codes will be generated from this offset
+.BYTE $AB    ; Set to the current address $0080 with a byte $AB
+.WORD $ABCD  ; Set to the current address $0081 with two bytes $CD and $AB
+.END         ; This is equivelent to JMP *
 ```
 
-### Special
-
-#### NOP
-
-```
-NOP          ; Do nothing
-```
-
-### Jump
-
-#### JMP
-
-Absolute addressing:
-
-```
-JMP $0080    ; Set the program counter to $0080
-```
+### Addressing
 
 ```
 START ORG $0080
-      JMP START    ; Set the program counter to $0080
-```
-
-```
-JMP *    ; A dead loop
-```
-
-Indirect addressing:
-
-```
-START ORG $0080
-      .WORD $00A0
-      JMP (START)    ; Set the program counter to the address that is contained in the target address,
-                     ; which is $00A0 in this case
-      JMP ($0080)
-```
-
-### Load
-
-#### LDA
-
-```
-LDA #10             ; Load $0A into the accumulator
-LDA #LO $ABCD       ; Load $CD into the accumulator
-LDA #HI $ABCD       ; Load $AB into the accumulator
-LDA $00             ; Load into accumulator from zero-page address $00
-LDA $10,X           ; Load into accumulator from zero-page address ($10 + X) % $0100
-LDA $ABCD           ; Load into accumulator from address $ABCD
-LDA $ABCD,X         ; Load into accumulator from address $ABCD + X
-LDA $ABCD,Y         ; Load into accumulator from address $ABCD + Y
-LDA ($40,X)         ; Load into accumulator from the 2-byte address contained in ($40 + X) % $0100
-LDA ($40),Y         ; Load into accumulator from (the 2-byte address contained in $40) + Y
+      .WORD *+3
+      NOP                 ; Implied addressing
+      JMP (START)         ; Indirect addressing
+      LDA #10             ; Load $0A into the accumulator
+      LDA #LO $ABCD       ; Load $CD into the accumulator
+      LDA #HI $ABCD       ; Load $AB into the accumulator
+      LDA $00             ; Load into accumulator from zero-page address $00
+      LDA $10,X           ; Load into accumulator from zero-page address ($10 + X) % $0100
+      LDX $10,Y           ; Load into X from zero-page address ($10 + Y) % $0100
+      LDA $ABCD           ; Load into accumulator from address $ABCD
+      LDA $ABCD,X         ; Load into accumulator from address $ABCD + X
+      LDA $ABCD,Y         ; Load into accumulator from address $ABCD + Y
+      LDA ($40,X)         ; Load into accumulator from the 2-byte address contained in ($40 + X) % $0100
+      LDA ($40),Y         ; Load into accumulator from (the 2-byte address contained in $40) + Y
 ```
 
 Special rules for zero-page addressing:
@@ -109,31 +86,3 @@ LDA *               ; This is not zero-page addressing no matter what the curren
 LDA LABEL           ; This is not zero-page addressing no matter where LABEL points to
 LDA $FF+10-10       ; This is not zero-page addressing as the intermedidate result is greater than a byte
 ```
-
-#### LDX 
-
-```
-LDX #10             ; Load $0A into the X
-LDX $00             ; Load into X from zero-page address $00
-LDX $10,Y           ; Load into X from zero-page address ($10 + Y) % $0100
-LDX $ABCD           ; Load into X from address $ABCD
-LDX $ABCD,Y         ; Load into X from address $ABCD + Y
-```
-
-#### LDY
-
-```
-LDY #10             ; Load $0A into the Y
-LDY $00             ; Load into Y from zero-page address $00
-LDY $10,X           ; Load into Y from zero-page address ($10 + X) % $0100
-LDY $ABCD           ; Load into Y from address $ABCD
-LDY $ABCD,X         ; Load into Y from address $ABCD + X
-```
-
-### Store
-
-### STA, STX, STY
-
-Basically, they are the inverse operation of `LDA`, `LDX`, and `LDY`, respectively.
-You can not use immediate addressing in these operations,
-and you can not use indexed absolute addressing in `LDX` and `LDY`.
