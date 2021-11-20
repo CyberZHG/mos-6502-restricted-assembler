@@ -25,7 +25,7 @@ def find_version(*file_paths):
 
 
 setup(
-    name='cpu_6502_restricted_assembler',
+    name='mos-6502-restricted-assembler',
     version=find_version('asm_6502', '__init__.py'),
     packages=find_packages(),
     url='https://github.com/CyberZHG/mos-6502-restricted-assembler',

@@ -8,7 +8,7 @@ A 6502 assembler with restricted functions.
 ## Install
 
 ```bash
-pip install git+https://github.com/CyberZHG/cpu-6502-restricted-assembler@main
+pip install mos-6502-restricted-assembler
 ```
 
 ## Usage
