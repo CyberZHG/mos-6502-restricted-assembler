@@ -25,7 +25,7 @@ CODE_MAP_IMPLIED = {
     'DEY': 0x88, 'INX': 0xE8, 'INY': 0xC8, 'PHA': 0x48, 'PHP': 0x08,
     'PLA': 0x68, 'PLP': 0x28, 'RTI': 0x40, 'RTS': 0x60, 'SEC': 0x38,
     'SED': 0xF8, 'SEI': 0x78, 'TAX': 0xAA, 'TAY': 0xA8, 'TSX': 0xBA,
-    'TXA': 0x8A, 'TXS': 0x9A, 'TYA': 0x98,
+    'TXA': 0x8A, 'TXS': 0x9A, 'TYA': 0x98, 'JAM': 0x02,
 }
 
 CODE_MAP_RELATIVE = {
@@ -34,7 +34,9 @@ CODE_MAP_RELATIVE = {
 }
 
 
-CODE_MAP_IMMEDIATE = {}
+CODE_MAP_IMMEDIATE = {
+    'ANC': 0x0B, 'ARR': 0x6B, 'ASR': 0x4B, 'SBX': 0xCB, 'XAA': 0x8B,
+}
 
 CODE_MAP_ABSOLUTE_Y = {
     'LAS': 0xBB, 'SHS': 0x9B, 'SHX': 0x9E,
@@ -184,6 +186,8 @@ class Assembler(object):
                 self.label_offsets[inst.label] = self.code_offset
             if inst.op in CODE_MAP_IMPLIED:
                 offset = self._get_num_bytes_type_implied(inst.addressing)
+            elif inst.op in CODE_MAP_IMMEDIATE:
+                offset = self._get_num_bytes_type_immediate(inst.addressing)
             elif inst.op in CODE_MAP_RELATIVE:
                 offset = self._get_num_bytes_type_relative(inst.addressing)
             elif inst.op in CODE_MAP_ABSOLUTE_Y:
@@ -213,6 +217,8 @@ class Assembler(object):
             self.code_offset = self.code_offsets[i]
             if inst.op in CODE_MAP_IMPLIED:
                 self._extend_address_type_implied(i, inst.addressing, inst.op)
+            elif inst.op in CODE_MAP_IMMEDIATE:
+                self._extend_address_type_immediate(i, inst.addressing, inst.op)
             elif inst.op in CODE_MAP_RELATIVE:
                 self._extend_address_type_relative(i, inst.addressing, inst.op)
             elif inst.op in CODE_MAP_ABSOLUTE_Y:
@@ -315,6 +321,14 @@ class Assembler(object):
     @_assemble_guard
     def _extend_address_type_implied(self, index, addressing: Addressing, op: str):
         self._extend_byte(CODE_MAP_IMPLIED[op])
+
+    @_addressing_guard(allowed={Addressing.IMMEDIATE})
+    def _get_num_bytes_type_immediate(self, addressing: Addressing):
+        return 2
+
+    @_assemble_guard
+    def _extend_address_type_immediate(self, index, addressing: Addressing, op: str):
+        self._extend_byte_address(CODE_MAP_IMMEDIATE[op], addressing)
 
     @_addressing_guard(allowed={Addressing.ADDRESS})
     def _get_num_bytes_type_relative(self, addressing: Addressing):
