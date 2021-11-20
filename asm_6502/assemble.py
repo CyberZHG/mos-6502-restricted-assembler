@@ -311,7 +311,13 @@ class Assembler(object):
 
     @_assemble_guard
     def _extend_address_type_relative(self, index, addressing: Addressing, op: str):
-        self._extend_byte_address(CODE_MAP_RELATIVE[op], addressing)
+        address = addressing.address.value - (self.codes[-1][0] + 2)
+        if address < -0x80 or 0x7F < address:
+            raise AssembleError(f"The offset {hex(address)} is out of range for relative addressing "
+                                f"at line {self.line_number}")
+        if address < 0:
+            address += 0x100
+        self.codes[-1][1].extend([CODE_MAP_RELATIVE[op], address])
 
     @_addressing_guard(allowed={Addressing.IMMEDIATE, Addressing.ADDRESS, Addressing.INDEXED,
                                 Addressing.INDEXED_INDIRECT, Addressing.INDIRECT_INDEXED})
