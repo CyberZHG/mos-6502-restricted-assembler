@@ -624,6 +624,29 @@ class Assembler(object):
                                     f"at line {self.line_number}")
             self._extend_byte_address(0x94, addressing)
 
+    @_addressing_guard(allowed={Addressing.ADDRESS, Addressing.INDEXED, Addressing.INDEXED_INDIRECT})
+    def pre_sax(self, addressing: Addressing):
+        if addressing.mode in {Addressing.ADDRESS, Addressing.INDEXED}:
+            return 2 if self.fit_zero_pages[-1] else 3
+        return 2
+
+    @_assemble_guard
+    def gen_sax(self, index, addressing: Addressing):
+        if addressing.mode == Addressing.ADDRESS:
+            if self.fit_zero_pages[index]:
+                self._extend_byte_address(0x87, addressing)
+            else:
+                self._extend_word_address(0x8F, addressing)
+        elif addressing.mode == Addressing.INDEXED:
+            if addressing.register == 'X':
+                raise AssembleError(f"Can not use X as the index register in SAX at line {self.line_number}")
+            if addressing.address.value > 0xFF:
+                raise AssembleError(f"Absolute indexed addressing is not allowed for SAX "
+                                    f"at line {self.line_number}")
+            self._extend_byte_address(0x97, addressing)
+        elif addressing.mode == Addressing.INDEXED_INDIRECT:
+            self._extend_byte_address(0x83, addressing)
+
     @_addressing_guard(allowed={Addressing.ADDRESS})
     def pre_bit(self, addressing: Addressing):
         return 2 if self.fit_zero_pages[-1] else 3
