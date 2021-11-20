@@ -34,6 +34,13 @@ CODE_MAP_RELATIVE = {
 }
 
 
+CODE_MAP_IMMEDIATE = {}
+
+CODE_MAP_ABSOLUTE_Y = {
+    'LAS': 0xBB,
+}
+
+
 CODE_MAPS_LOAD_A = {
     'ADC': {
         Addressing.IMMEDIATE: 0x69,
@@ -179,6 +186,8 @@ class Assembler(object):
                 offset = self._get_num_bytes_type_implied(inst.addressing)
             elif inst.op in CODE_MAP_RELATIVE:
                 offset = self._get_num_bytes_type_relative(inst.addressing)
+            elif inst.op in CODE_MAP_ABSOLUTE_Y:
+                offset = self._get_num_bytes_type_absolute_y(inst.addressing)
             elif inst.op in CODE_MAPS_LOAD_A:
                 offset = self._get_num_bytes_type_load_a(inst.addressing)
             elif inst.op in CODE_MAPS_A_M:
@@ -206,6 +215,8 @@ class Assembler(object):
                 self._extend_address_type_implied(i, inst.addressing, inst.op)
             elif inst.op in CODE_MAP_RELATIVE:
                 self._extend_address_type_relative(i, inst.addressing, inst.op)
+            elif inst.op in CODE_MAP_ABSOLUTE_Y:
+                self._extend_address_type_absolute_y(i, inst.addressing, inst.op)
             elif inst.op in CODE_MAPS_LOAD_A:
                 self._extend_address_type_load_a(i, inst.addressing, inst.op)
             elif inst.op in CODE_MAPS_A_M:
@@ -318,6 +329,14 @@ class Assembler(object):
         if address < 0:
             address += 0x100
         self.codes[-1][1].extend([CODE_MAP_RELATIVE[op], address])
+
+    @_addressing_guard(allowed={Addressing.INDEXED})
+    def _get_num_bytes_type_absolute_y(self, addressing: Addressing):
+        return 3
+
+    @_assemble_guard
+    def _extend_address_type_absolute_y(self, index, addressing: Addressing, op: str):
+        self._extend_word_address(CODE_MAP_ABSOLUTE_Y[op], addressing)
 
     @_addressing_guard(allowed={Addressing.IMMEDIATE, Addressing.ADDRESS, Addressing.INDEXED,
                                 Addressing.INDEXED_INDIRECT, Addressing.INDIRECT_INDEXED})
