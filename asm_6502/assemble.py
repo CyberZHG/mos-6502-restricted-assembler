@@ -647,6 +647,19 @@ class Assembler(object):
         elif addressing.mode == Addressing.INDEXED_INDIRECT:
             self._extend_byte_address(0x83, addressing)
 
+    @_addressing_guard(allowed={Addressing.INDEXED, Addressing.INDIRECT_INDEXED})
+    def pre_sha(self, addressing: Addressing):
+        return 3 if addressing.mode == Addressing.INDEXED else 2
+
+    @_assemble_guard
+    def gen_sha(self, index, addressing: Addressing):
+        if addressing.mode == Addressing.INDEXED:
+            if addressing.register == 'X':
+                raise AssembleError(f"Can not use X as the index register in SHA at line {self.line_number}")
+            self._extend_word_address(0x9F, addressing)
+        elif addressing.mode == Addressing.INDIRECT_INDEXED:
+            self._extend_byte_address(0x93, addressing)
+
     @_addressing_guard(allowed={Addressing.ADDRESS})
     def pre_bit(self, addressing: Addressing):
         return 2 if self.fit_zero_pages[-1] else 3
