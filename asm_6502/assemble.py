@@ -160,6 +160,15 @@ CODE_MAPS_STORE_A = {
         Addressing.INDEXED_INDIRECT: 0x63,
         Addressing.INDIRECT_INDEXED: 0x73,
     },
+    'SLO': {
+        Addressing.ZERO_PAGE: 0x07,
+        Addressing.ZERO_PAGE_X: 0x17,
+        Addressing.ABSOLUTE: 0x0F,
+        Addressing.ABSOLUTE_X: 0x1F,
+        Addressing.ABSOLUTE_Y: 0x1B,
+        Addressing.INDEXED_INDIRECT: 0x03,
+        Addressing.INDIRECT_INDEXED: 0x13,
+    },
 }
 
 
