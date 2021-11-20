@@ -21,11 +21,11 @@ class AssembleError(Exception):
 
 
 CODE_MAP_IMPLIED = {
-    'BRK': 0x00, 'CLC': 0x18, 'CLD': 0xD8, 'CLI': 0x58, 'CLV': 0xB8,
-    'DEX': 0xCA, 'DEY': 0x88, 'INX': 0xE8, 'INY': 0xC8, 'NOP': 0xEA,
-    'PHA': 0x48, 'PHP': 0x08, 'PLA': 0x68, 'PLP': 0x28, 'RTI': 0x40,
-    'RTS': 0x60, 'SEC': 0x38, 'SED': 0xF8, 'SEI': 0x78, 'TAX': 0xAA,
-    'TAY': 0xA8, 'TSX': 0xBA, 'TXA': 0x8A, 'TXS': 0x9A, 'TYA': 0x98,
+    'CLC': 0x18, 'CLD': 0xD8, 'CLI': 0x58, 'CLV': 0xB8, 'DEX': 0xCA,
+    'DEY': 0x88, 'INX': 0xE8, 'INY': 0xC8, 'NOP': 0xEA, 'PHA': 0x48,
+    'PHP': 0x08, 'PLA': 0x68, 'PLP': 0x28, 'RTI': 0x40, 'RTS': 0x60,
+    'SEC': 0x38, 'SED': 0xF8, 'SEI': 0x78, 'TAX': 0xAA, 'TAY': 0xA8,
+    'TSX': 0xBA, 'TXA': 0x8A, 'TXS': 0x9A, 'TYA': 0x98,
 }
 
 CODE_MAP_RELATIVE = {
@@ -407,6 +407,15 @@ class Assembler(object):
     @_assemble_guard
     def gen_word(self, index, addressing: Addressing):
         self.codes[-1][1].extend([addressing.address.low_byte().value, addressing.address.high_byte().value])
+
+    @_addressing_guard(allowed={Addressing.IMPLIED})
+    def pre_brk(self, addressing: Addressing):
+        return 2
+
+    @_assemble_guard
+    def gen_brk(self, index, addressing: Addressing):
+        self._extend_byte(0x00)
+        self._extend_byte(0x00)
 
     @_addressing_guard(allowed={Addressing.ADDRESS, Addressing.INDIRECT})
     def pre_jmp(self, addressing: Addressing):

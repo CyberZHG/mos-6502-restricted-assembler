@@ -12,5 +12,5 @@ class TestAssembleBRK(TestCase):
         code = "BRK"
         results = self.assembler.assemble(code, add_entry=False)
         self.assertEqual([
-            (0x0000, [0x00]),
+            (0x0000, [0x00, 0x00]),
         ], results)
