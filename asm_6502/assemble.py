@@ -37,7 +37,7 @@ CODE_MAP_RELATIVE = {
 CODE_MAP_IMMEDIATE = {}
 
 CODE_MAP_ABSOLUTE_Y = {
-    'LAS': 0xBB, 'SHX': 0x9E,
+    'LAS': 0xBB, 'SHS': 0x9B, 'SHX': 0x9E,
 }
 
 
