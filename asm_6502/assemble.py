@@ -532,6 +532,34 @@ class Assembler(object):
             else:
                 self._extend_word_address(0xBC, addressing)
 
+    @_addressing_guard(allowed={Addressing.IMMEDIATE, Addressing.ADDRESS, Addressing.INDEXED,
+                                Addressing.INDIRECT_INDEXED, Addressing.INDEXED_INDIRECT})
+    def pre_lax(self, addressing: Addressing):
+        if addressing.mode in {Addressing.ADDRESS, Addressing.INDEXED}:
+            return 2 if self.fit_zero_pages[-1] else 3
+        return 2
+
+    @_assemble_guard
+    def gen_lax(self, index, addressing: Addressing):
+        if addressing.mode == Addressing.IMMEDIATE:
+            self._extend_byte_address(0xAB, addressing)
+        elif addressing.mode == Addressing.ADDRESS:
+            if self.fit_zero_pages[index]:
+                self._extend_byte_address(0xA7, addressing)
+            else:
+                self._extend_word_address(0xAF, addressing)
+        elif addressing.mode == Addressing.INDEXED:
+            if addressing.register == 'X':
+                raise AssembleError(f"Can not use X as the index register in LAX at line {self.line_number}")
+            if self.fit_zero_pages[index]:
+                self._extend_byte_address(0xB7, addressing)
+            else:
+                self._extend_word_address(0xBF, addressing)
+        elif addressing.mode == Addressing.INDEXED_INDIRECT:
+            self._extend_byte_address(0xA3, addressing)
+        elif addressing.mode == Addressing.INDIRECT_INDEXED:
+            self._extend_byte_address(0xB3, addressing)
+
     @_addressing_guard(allowed={Addressing.ADDRESS, Addressing.INDEXED,
                                 Addressing.INDEXED_INDIRECT, Addressing.INDIRECT_INDEXED})
     def pre_sta(self, addressing: Addressing):
