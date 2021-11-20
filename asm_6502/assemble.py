@@ -33,7 +33,6 @@ CODE_MAP_RELATIVE = {
     'BPL': 0x10, 'BVC': 0x50, 'BVS': 0x70,
 }
 
-
 CODE_MAP_IMMEDIATE = {
     'ANC': 0x0B, 'ARR': 0x6B, 'ASR': 0x4B, 'SBX': 0xCB, 'XAA': 0x8B,
 }
@@ -41,7 +40,6 @@ CODE_MAP_IMMEDIATE = {
 CODE_MAP_ABSOLUTE_Y = {
     'LAS': 0xBB, 'SHS': 0x9B, 'SHX': 0x9E,
 }
-
 
 CODE_MAPS_LOAD_A = {
     'ADC': {
@@ -116,6 +114,27 @@ CODE_MAPS_LOAD_A = {
     },
 }
 
+CODE_MAPS_STORE_A = {
+    'STA': {
+        Addressing.ZERO_PAGE: 0x85,
+        Addressing.ZERO_PAGE_X: 0x95,
+        Addressing.ABSOLUTE: 0x8D,
+        Addressing.ABSOLUTE_X: 0x9D,
+        Addressing.ABSOLUTE_Y: 0x99,
+        Addressing.INDEXED_INDIRECT: 0x81,
+        Addressing.INDIRECT_INDEXED: 0x91,
+    },
+    'DCP': {
+        Addressing.ZERO_PAGE: 0xC7,
+        Addressing.ZERO_PAGE_X: 0xD7,
+        Addressing.ABSOLUTE: 0xCF,
+        Addressing.ABSOLUTE_X: 0xDF,
+        Addressing.ABSOLUTE_Y: 0xDB,
+        Addressing.INDEXED_INDIRECT: 0xC3,
+        Addressing.INDIRECT_INDEXED: 0xD3,
+    },
+}
+
 
 CODE_MAPS_A_M = {
     'ASL': {
@@ -184,23 +203,25 @@ class Assembler(object):
             self.line_number = inst.line_num
             if inst.label is not None and not inst.op.endswith('ORG'):
                 self.label_offsets[inst.label] = self.code_offset
+            op_name = inst.op.lower()
+            if op_name.startswith('.'):
+                op_name = op_name[1:]
             if inst.op in CODE_MAP_IMPLIED:
-                offset = self._get_num_bytes_type_implied(inst.addressing)
+                offset = self._get_num_bytes_type_implied(inst.addressing, op_name)
             elif inst.op in CODE_MAP_IMMEDIATE:
-                offset = self._get_num_bytes_type_immediate(inst.addressing)
+                offset = self._get_num_bytes_type_immediate(inst.addressing, op_name)
             elif inst.op in CODE_MAP_RELATIVE:
-                offset = self._get_num_bytes_type_relative(inst.addressing)
+                offset = self._get_num_bytes_type_relative(inst.addressing, op_name)
             elif inst.op in CODE_MAP_ABSOLUTE_Y:
-                offset = self._get_num_bytes_type_absolute_y(inst.addressing)
+                offset = self._get_num_bytes_type_absolute_y(inst.addressing, op_name)
             elif inst.op in CODE_MAPS_LOAD_A:
-                offset = self._get_num_bytes_type_load_a(inst.addressing)
+                offset = self._get_num_bytes_type_load_a(inst.addressing, op_name)
+            elif inst.op in CODE_MAPS_STORE_A:
+                offset = self._get_num_bytes_type_store_a(inst.addressing, op_name)
             elif inst.op in CODE_MAPS_A_M:
-                offset = self._get_num_bytes_type_a_m(inst.addressing)
+                offset = self._get_num_bytes_type_a_m(inst.addressing, op_name)
             else:
-                op_name = inst.op.lower()
-                if op_name.startswith('.'):
-                    op_name = op_name[1:]
-                offset = getattr(self, f'pre_{op_name}')(inst.addressing)
+                offset = getattr(self, f'pre_{op_name}')(inst.addressing, op_name)
             if inst.label is not None and inst.op.endswith('ORG'):
                 self.label_offsets[inst.label] = self.code_offset
             if self.code_start == -1 and inst.op in Instruction.KEYWORDS:
@@ -225,6 +246,8 @@ class Assembler(object):
                 self._extend_address_type_absolute_y(i, inst.addressing, inst.op)
             elif inst.op in CODE_MAPS_LOAD_A:
                 self._extend_address_type_load_a(i, inst.addressing, inst.op)
+            elif inst.op in CODE_MAPS_STORE_A:
+                self._extend_address_type_store_a(i, inst.addressing, inst.op)
             elif inst.op in CODE_MAPS_A_M:
                 self._extend_address_type_a_m(i, inst.addressing, inst.op)
             else:
@@ -242,11 +265,10 @@ class Assembler(object):
     def _addressing_guard(allowed: Iterable[str]):
         def deco(func):
             @wraps(func)
-            def inner(self, addressing):
+            def inner(self, addressing, op_name):
                 if addressing.mode not in allowed:
-                    keyword = func.__name__[4:].upper()
-                    raise AssembleError(f"{addressing.mode.capitalize()} addressing is not allowed for `{keyword}` "
-                                        f"at line {self.line_number}")
+                    raise AssembleError(f"{addressing.mode.capitalize()} addressing is not allowed"
+                                        f" for `{op_name.upper()}` at line {self.line_number}")
                 self.fit_zero_pages.append(False)
                 if addressing.mode in {Addressing.ADDRESS, Addressing.INDEXED}:
                     try:
@@ -365,6 +387,33 @@ class Assembler(object):
         if addressing.mode == Addressing.IMMEDIATE:
             self._extend_byte_address(code_map[Addressing.IMMEDIATE], addressing)
         elif addressing.mode == Addressing.ADDRESS:
+            if self.fit_zero_pages[index]:
+                self._extend_byte_address(code_map[Addressing.ZERO_PAGE], addressing)
+            else:
+                self._extend_word_address(code_map[Addressing.ABSOLUTE], addressing)
+        elif addressing.mode == Addressing.INDEXED:
+            if self.fit_zero_pages[index] and addressing.register == 'X':
+                self._extend_byte_address(code_map[Addressing.ZERO_PAGE_X], addressing)
+            elif addressing.register == 'X':
+                self._extend_word_address(code_map[Addressing.ABSOLUTE_X], addressing)
+            else:
+                self._extend_word_address(code_map[Addressing.ABSOLUTE_Y], addressing)
+        elif addressing.mode == Addressing.INDEXED_INDIRECT:
+            self._extend_byte_address(code_map[Addressing.INDEXED_INDIRECT], addressing)
+        elif addressing.mode == Addressing.INDIRECT_INDEXED:
+            self._extend_byte_address(code_map[Addressing.INDIRECT_INDEXED], addressing)
+
+    @_addressing_guard(allowed={Addressing.ADDRESS, Addressing.INDEXED,
+                                Addressing.INDEXED_INDIRECT, Addressing.INDIRECT_INDEXED})
+    def _get_num_bytes_type_store_a(self, addressing: Addressing):
+        if addressing.mode in {Addressing.ADDRESS, Addressing.INDEXED}:
+            return 2 if self.fit_zero_pages[-1] else 3
+        return 2
+
+    @_assemble_guard
+    def _extend_address_type_store_a(self, index, addressing: Addressing, op: str):
+        code_map = CODE_MAPS_STORE_A[op]
+        if addressing.mode == Addressing.ADDRESS:
             if self.fit_zero_pages[index]:
                 self._extend_byte_address(code_map[Addressing.ZERO_PAGE], addressing)
             else:
@@ -573,32 +622,6 @@ class Assembler(object):
             self._extend_byte_address(0xA3, addressing)
         elif addressing.mode == Addressing.INDIRECT_INDEXED:
             self._extend_byte_address(0xB3, addressing)
-
-    @_addressing_guard(allowed={Addressing.ADDRESS, Addressing.INDEXED,
-                                Addressing.INDEXED_INDIRECT, Addressing.INDIRECT_INDEXED})
-    def pre_sta(self, addressing: Addressing):
-        if addressing.mode in {Addressing.ADDRESS, Addressing.INDEXED}:
-            return 2 if self.fit_zero_pages[-1] else 3
-        return 2
-
-    @_assemble_guard
-    def gen_sta(self, index, addressing: Addressing):
-        if addressing.mode == Addressing.ADDRESS:
-            if self.fit_zero_pages[index]:
-                self._extend_byte_address(0x85, addressing)
-            else:
-                self._extend_word_address(0x8D, addressing)
-        elif addressing.mode == Addressing.INDEXED:
-            if self.fit_zero_pages[index] and addressing.register == 'X':
-                self._extend_byte_address(0x95, addressing)
-            elif addressing.register == 'X':
-                self._extend_word_address(0x9D, addressing)
-            else:
-                self._extend_word_address(0x99, addressing)
-        elif addressing.mode == Addressing.INDEXED_INDIRECT:
-            self._extend_byte_address(0x81, addressing)
-        elif addressing.mode == Addressing.INDIRECT_INDEXED:
-            self._extend_byte_address(0x91, addressing)
 
     @_addressing_guard(allowed={Addressing.ADDRESS, Addressing.INDEXED})
     def pre_stx(self, addressing: Addressing):
