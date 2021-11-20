@@ -142,6 +142,15 @@ CODE_MAPS_STORE_A = {
         Addressing.INDEXED_INDIRECT: 0xE3,
         Addressing.INDIRECT_INDEXED: 0xF3,
     },
+    'RLA': {
+        Addressing.ZERO_PAGE: 0x27,
+        Addressing.ZERO_PAGE_X: 0x37,
+        Addressing.ABSOLUTE: 0x2F,
+        Addressing.ABSOLUTE_X: 0x3F,
+        Addressing.ABSOLUTE_Y: 0x3B,
+        Addressing.INDEXED_INDIRECT: 0x23,
+        Addressing.INDIRECT_INDEXED: 0x33,
+    },
 }
 
 
