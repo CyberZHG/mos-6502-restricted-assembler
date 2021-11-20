@@ -90,6 +90,9 @@ class Instruction(namedtuple('Instruction', ['label', 'op', 'addressing', 'line_
         'CLD', 'CLI', 'CLV', 'CMP', 'CPX', 'CPY', 'DEC', 'DEX', 'DEY', 'EOR', 'INC', 'INX', 'INY', 'JMP',
         'JSR', 'LDA', 'LDX', 'LDY', 'LSR', 'NOP', 'ORA', 'PHA', 'PHP', 'PLA', 'PLP', 'ROL', 'ROR', 'RTI',
         'RTS', 'SBC', 'SEC', 'SED', 'SEI', 'STA', 'STX', 'STY', 'TAX', 'TAY', 'TSX', 'TXA', 'TXS', 'TYA',
+
+        'ANC', 'ARR', 'ASR', 'DCP', 'ISC', 'JAM', 'LAS', 'LAX', 'RLA', 'RRA', 'SAX', 'SBX', 'SHA', 'SHS',
+        'SHX', 'SHY', 'SLO', 'SRE', 'XAA'
     }
 
     PSEUDOS = {

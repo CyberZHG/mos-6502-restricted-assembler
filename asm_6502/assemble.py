@@ -22,10 +22,10 @@ class AssembleError(Exception):
 
 CODE_MAP_IMPLIED = {
     'CLC': 0x18, 'CLD': 0xD8, 'CLI': 0x58, 'CLV': 0xB8, 'DEX': 0xCA,
-    'DEY': 0x88, 'INX': 0xE8, 'INY': 0xC8, 'NOP': 0xEA, 'PHA': 0x48,
-    'PHP': 0x08, 'PLA': 0x68, 'PLP': 0x28, 'RTI': 0x40, 'RTS': 0x60,
-    'SEC': 0x38, 'SED': 0xF8, 'SEI': 0x78, 'TAX': 0xAA, 'TAY': 0xA8,
-    'TSX': 0xBA, 'TXA': 0x8A, 'TXS': 0x9A, 'TYA': 0x98,
+    'DEY': 0x88, 'INX': 0xE8, 'INY': 0xC8, 'PHA': 0x48, 'PHP': 0x08,
+    'PLA': 0x68, 'PLP': 0x28, 'RTI': 0x40, 'RTS': 0x60, 'SEC': 0x38,
+    'SED': 0xF8, 'SEI': 0x78, 'TAX': 0xAA, 'TAY': 0xA8, 'TSX': 0xBA,
+    'TXA': 0x8A, 'TXS': 0x9A, 'TYA': 0x98,
 }
 
 CODE_MAP_RELATIVE = {
@@ -420,6 +420,33 @@ class Assembler(object):
     def gen_brk(self, index, addressing: Addressing):
         self._extend_byte(0x00)
         self._extend_byte(0x00)
+
+    @_addressing_guard(allowed={Addressing.IMPLIED, Addressing.IMMEDIATE, Addressing.ADDRESS, Addressing.INDEXED})
+    def pre_nop(self, addressing: Addressing):
+        if addressing.mode == Addressing.IMPLIED:
+            return 1
+        if addressing.mode in {Addressing.ADDRESS, Addressing.INDEXED}:
+            return 2 if self.fit_zero_pages[-1] else 3
+        return 2
+
+    @_assemble_guard
+    def gen_nop(self, index, addressing: Addressing):
+        if addressing.mode == Addressing.IMPLIED:
+            self._extend_byte(0xEA)
+        elif addressing.mode == Addressing.IMMEDIATE:
+            self._extend_byte_address(0x80, addressing)
+        elif addressing.mode == Addressing.ADDRESS:
+            if self.fit_zero_pages[index]:
+                self._extend_byte_address(0x04, addressing)
+            else:
+                self._extend_word_address(0x0C, addressing)
+        elif addressing.mode == Addressing.INDEXED:
+            if addressing.register == 'Y':
+                raise AssembleError(f"Can not use Y as the index register in NOP at line {self.line_number}")
+            if self.fit_zero_pages[index]:
+                self._extend_byte_address(0x14, addressing)
+            else:
+                self._extend_word_address(0x1C, addressing)
 
     @_addressing_guard(allowed={Addressing.ADDRESS, Addressing.INDIRECT})
     def pre_jmp(self, addressing: Addressing):
