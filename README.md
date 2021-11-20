@@ -1,6 +1,7 @@
 # 6502 Restricted Assembler
 
 [![Python application](https://github.com/CyberZHG/cpu-6502-restricted-assembler/actions/workflows/python-test.yml/badge.svg)](https://github.com/CyberZHG/cpu-6502-restricted-assembler/actions/workflows/python-test.yml)
+[![Coverage Status](https://coveralls.io/repos/github/CyberZHG/mos-6502-restricted-assembler/badge.svg?branch=main)](https://coveralls.io/github/CyberZHG/mos-6502-restricted-assembler?branch=main)
 
 A 6502 assembler with restricted functions.
 
