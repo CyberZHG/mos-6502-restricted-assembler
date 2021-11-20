@@ -133,6 +133,15 @@ CODE_MAPS_STORE_A = {
         Addressing.INDEXED_INDIRECT: 0xC3,
         Addressing.INDIRECT_INDEXED: 0xD3,
     },
+    'ISC': {
+        Addressing.ZERO_PAGE: 0xE7,
+        Addressing.ZERO_PAGE_X: 0xF7,
+        Addressing.ABSOLUTE: 0xEF,
+        Addressing.ABSOLUTE_X: 0xFF,
+        Addressing.ABSOLUTE_Y: 0xFB,
+        Addressing.INDEXED_INDIRECT: 0xE3,
+        Addressing.INDIRECT_INDEXED: 0xF3,
+    },
 }
 
 
