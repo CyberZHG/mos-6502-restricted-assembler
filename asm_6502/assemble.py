@@ -169,6 +169,15 @@ CODE_MAPS_STORE_A = {
         Addressing.INDEXED_INDIRECT: 0x03,
         Addressing.INDIRECT_INDEXED: 0x13,
     },
+    'SRE': {
+        Addressing.ZERO_PAGE: 0x47,
+        Addressing.ZERO_PAGE_X: 0x57,
+        Addressing.ABSOLUTE: 0x4F,
+        Addressing.ABSOLUTE_X: 0x5F,
+        Addressing.ABSOLUTE_Y: 0x5B,
+        Addressing.INDEXED_INDIRECT: 0x43,
+        Addressing.INDIRECT_INDEXED: 0x53,
+    },
 }
 
 
