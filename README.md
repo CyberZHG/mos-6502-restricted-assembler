@@ -31,10 +31,9 @@ JMP $abcd
 results = assembler.assemble(code)
 # Results will be `[
 #     (0x0080, [0x4C, 0xcd, 0xab]),
-#     (0xFFFC, [0x4C, 0x80, 0x00]),
+#     (0xFFFC, [0x80, 0x00]),
 # ]`
-# By default, the assembler will add a JMP instruction that 
-# points to the first line of code that can be executed.
+# By default, the assembler will set to 0xFFFE/F the address of the first line that can be executed.
 ```
 
 ## Instructions

@@ -219,7 +219,7 @@ class Assembler(object):
             del self.codes[-1]
         if add_entry:
             self.code_offset = 0xFFFC
-            self.gen_jmp(None, Addressing(Addressing.ADDRESS, address=Integer(is_word=True, value=self.code_start)))
+            self.gen_entry(None, Addressing(Addressing.ADDRESS, address=Integer(is_word=True, value=self.code_start)))
         return self.codes
 
     def _addressing_guard(allowed: Iterable[str]):
@@ -371,6 +371,10 @@ class Assembler(object):
                 self._extend_byte_address(code_map[Addressing.ZERO_PAGE_X], addressing)
             else:
                 self._extend_word_address(code_map[Addressing.ABSOLUTE_X], addressing)
+
+    @_assemble_guard
+    def gen_entry(self, index, addressing: Addressing):
+        self.codes[-1][1].extend([addressing.address.low_byte().value, addressing.address.high_byte().value])
 
     @_addressing_guard(allowed={Addressing.ADDRESS})
     def pre_org(self, addressing: Addressing):

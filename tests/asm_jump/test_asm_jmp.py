@@ -60,7 +60,7 @@ class TestAssembleJMP(TestCase):
         results = self.assembler.assemble(code)
         self.assertEqual([
             (0x0080, [0x4C, 0xcd, 0xab]),
-            (0xFFFC, [0x4C, 0x80, 0x00]),
+            (0xFFFC, [0x80, 0x00]),
         ], results)
 
         code = "START ORG $0080\n" \
@@ -68,7 +68,7 @@ class TestAssembleJMP(TestCase):
         results = self.assembler.assemble(code)
         self.assertEqual([
             (0x0080, [0x4C, 0xcd, 0xab]),
-            (0xFFFC, [0x4C, 0x80, 0x00]),
+            (0xFFFC, [0x80, 0x00]),
         ], results)
 
     def test_jmp_dead_loop(self):
