@@ -28,7 +28,7 @@ setup(
     name='cpu_6502_restricted_assembler',
     version=find_version('asm_6502', '__init__.py'),
     packages=find_packages(),
-    url='https://github.com/CyberZHG/cpu-6502-restricted-assembler',
+    url='https://github.com/CyberZHG/mos-6502-restricted-assembler',
     license='MIT',
     author='CyberZHG',
     author_email='CyberZHG@users.noreply.github.com',
