@@ -26,10 +26,10 @@ class TestParseError(TestCase):
         self.assertEqual("ParseError: Syntax error at EOF", str(e.exception))
 
     def test_parse_too_many_parameters(self):
-        code = 'LDA XXX,YYY,ZZZ'
+        code = 'LDA XXX,YYY,ZZZ ZZZ'
         with self.assertRaises(ParseError) as e:
             self.parser.parse(code)
-        self.assertEqual("ParseError: Syntax error at line 1, column 9: 'YYY'", str(e.exception))
+        self.assertEqual("ParseError: Syntax error at line 1, column 17: 'ZZZ'", str(e.exception))
 
     def test_wrong_accumulator(self):
         code = 'LSR X'

@@ -215,9 +215,14 @@ CODE_MAPS_A_M = {
 
 class Assembler(object):
 
-    def __init__(self, max_memory=0x10000, program_entry=0xfffc):
+    def __init__(self,
+                 max_memory=0x10000,
+                 program_entry=0xfffc,
+                 brk_size=2):
         self.max_memory = max_memory
         self.program_entry = program_entry
+        self.brk_size = brk_size
+        assert brk_size in {1, 2}, 'The size of BRK should be in {1, 2}'
 
         self.code_start = -1  # The offset of the first instruction that can be executed
         self.code_offset = 0  # Current offset
@@ -341,7 +346,7 @@ class Assembler(object):
             return func(self, index, addressing, *args, **kwargs)
         return inner
 
-    def _resolve_address_recur(self, arithmetic: Union[Integer, Arithmetic]) -> Integer:
+    def _resolve_address_recur(self, arithmetic: Union[Integer, Arithmetic]) -> Union[Integer, List[Integer]]:
         if arithmetic is None:
             return None
         if isinstance(arithmetic, Integer):
@@ -366,6 +371,8 @@ class Assembler(object):
             return self._resolve_address_recur(arithmetic.param).low_byte()
         if arithmetic.mode == Arithmetic.HIGH_BYTE:
             return self._resolve_address_recur(arithmetic.param).high_byte()
+        if arithmetic.mode == Arithmetic.LIST:
+            return [self._resolve_address_recur(p) for p in arithmetic.param]
 
     def _resolve_address(self, addressing: Addressing) -> Addressing:
         return Addressing(mode=addressing.mode,
@@ -521,32 +528,48 @@ class Assembler(object):
         address = Integer(is_word=True, value=self.codes[-1][0])
         self.codes[-1][1].extend([0x4C, address.low_byte().value, address.high_byte().value])
 
-    @_addressing_guard(allowed={Addressing.ADDRESS})
+    @_addressing_guard(allowed={Addressing.ADDRESS, Addressing.LIST})
     def pre_byte(self, addressing: Addressing):
+        if addressing.mode == Addressing.LIST:
+            return len(addressing.address.param)
         return 1
 
     @_assemble_guard
     def gen_byte(self, index, addressing: Addressing):
-        if addressing.address.value > 0xFF:
-            raise AssembleError(f"{hex(addressing.address.value)} can not fit in a byte at line {self.line_number}")
-        self._extend_byte(addressing.address.value)
+        if addressing.mode == Addressing.LIST:
+            for byte in addressing.address:
+                if byte.value > 0xFF:
+                    raise AssembleError(f"{hex(byte.value)} can not fit in a byte "
+                                        f"at line {self.line_number}")
+                self._extend_byte(byte.value)
+        else:
+            if addressing.address.value > 0xFF:
+                raise AssembleError(f"{hex(addressing.address.value)} can not fit in a byte "
+                                    f"at line {self.line_number}")
+            self._extend_byte(addressing.address.value)
 
-    @_addressing_guard(allowed={Addressing.ADDRESS})
+    @_addressing_guard(allowed={Addressing.ADDRESS, Addressing.LIST})
     def pre_word(self, addressing: Addressing):
+        if addressing.mode == Addressing.LIST:
+            return len(addressing.address.param) * 2
         return 2
 
     @_assemble_guard
     def gen_word(self, index, addressing: Addressing):
-        self.codes[-1][1].extend([addressing.address.low_byte().value, addressing.address.high_byte().value])
+        if addressing.mode == Addressing.LIST:
+            for word in addressing.address:
+                self.codes[-1][1].extend([word.low_byte().value, word.high_byte().value])
+        else:
+            self.codes[-1][1].extend([addressing.address.low_byte().value, addressing.address.high_byte().value])
 
     @_addressing_guard(allowed={Addressing.IMPLIED})
     def pre_brk(self, addressing: Addressing):
-        return 2
+        return self.brk_size
 
     @_assemble_guard
     def gen_brk(self, index, addressing: Addressing):
-        self._extend_byte(0x00)
-        self._extend_byte(0x00)
+        for i in range(self.brk_size):
+            self._extend_byte(0x00)
 
     @_addressing_guard(allowed={Addressing.IMPLIED, Addressing.IMMEDIATE, Addressing.ADDRESS, Addressing.INDEXED})
     def pre_nop(self, addressing: Addressing):

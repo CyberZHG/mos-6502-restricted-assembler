@@ -56,16 +56,18 @@ class Addressing(namedtuple('Addressing', ['mode', 'address', 'register'], defau
     IMMEDIATE = 'immediate'
     IMPLIED = 'implied'
     ADDRESS = 'address'
-    ZERO_PAGE = 'zero_page'
-    ZERO_PAGE_X = 'zero_page_x'
-    ZERO_PAGE_Y = 'zero_page_y'
+    ZERO_PAGE = 'zero page'
+    ZERO_PAGE_X = 'zero page X'
+    ZERO_PAGE_Y = 'zero page Y'
     ABSOLUTE = 'absolute'
-    ABSOLUTE_X = 'absolute_x'
-    ABSOLUTE_Y = 'absolute_y'
+    ABSOLUTE_X = 'absolute X'
+    ABSOLUTE_Y = 'absolute Y'
     INDIRECT = 'indirect'
     INDEXED = 'indexed'
     INDEXED_INDIRECT = 'indexed indirect'
     INDIRECT_INDEXED = 'indirect indexed'
+
+    LIST = 'list'
 
 
 class Arithmetic(namedtuple('Arithmetic', ['mode', 'param'], defaults=[None, None])):
@@ -81,6 +83,8 @@ class Arithmetic(namedtuple('Arithmetic', ['mode', 'param'], defaults=[None, Non
 
     LOW_BYTE = 'low_byte'
     HIGH_BYTE = 'high_byte'
+
+    LIST = 'list'
 
 
 class Instruction(namedtuple('Instruction', ['label', 'op', 'addressing', 'line_num'])):
@@ -317,6 +321,22 @@ def p_stat_val_immediate_bit(p):
 def p_stat_val_immediate(p):
     """stat_val : '#' arithmetic"""
     p[0] = Addressing(Addressing.IMMEDIATE, address=p[2])
+    return p
+
+
+def p_stat_val_list(p):
+    """stat_val : arithmetic_list"""
+    p[0] = Addressing(Addressing.LIST, address=p[1])
+    return p
+
+
+def p_arithmetic_list(p):
+    """arithmetic_list : arithmetic ',' arithmetic_list
+                       | arithmetic"""
+    if len(p) == 2:
+        p[0] = Arithmetic(Arithmetic.LIST, [p[1]])
+    else:
+        p[0] = Arithmetic(Arithmetic.LIST, [p[1]] + p[3].param)
     return p
 
 
